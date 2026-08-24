@@ -1,3 +1,5 @@
+import { resolveBrowserDistOutDir } from '../../../../sdkwork-specs/tools/browser-dist-layout.mjs';
+
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { defineConfig, loadEnv } from 'vite'
@@ -21,7 +23,7 @@ export default defineConfig(({ mode }) => {
     }
   },
   build: {
-    outDir: 'dist',
+    outDir: resolveBrowserDistOutDir(resolveViteEnvironment(mode, env)),
     sourcemap: true
   }
   };

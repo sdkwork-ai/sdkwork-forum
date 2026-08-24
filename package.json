@@ -39,7 +39,12 @@
     "_sdkwork:clean": "node -e \"import('node:fs').then(fs => { for (const target of ['apps/sdkwork-forum-pc/dist', 'apps/sdkwork-forum-h5/dist']) fs.rmSync(target, { recursive: true, force: true }); })\"",
     "dev": "pnpm dev:standalone",
     "dev:standalone": "pnpm exec sdkwork-app dev --deployment-profile standalone",
-    "dev:cloud": "pnpm exec sdkwork-app dev --deployment-profile cloud"
+    "dev:cloud": "pnpm exec sdkwork-app dev --deployment-profile cloud",
+    "build:h5:dev": "node ../sdkwork-specs/tools/build-browser-client.mjs --root . --architecture h5 --environment dev",
+    "build:h5:test": "node ../sdkwork-specs/tools/build-browser-client.mjs --root . --architecture h5 --environment test",
+    "build:h5:staging": "node ../sdkwork-specs/tools/build-browser-client.mjs --root . --architecture h5 --environment staging",
+    "build:h5:prod": "node ../sdkwork-specs/tools/build-browser-client.mjs --root . --architecture h5 --environment prod",
+    "check:browser-build-scripts": "node ../sdkwork-specs/tools/check-browser-build-scripts.mjs --root ."
   },
   "exports": {
     ".": {
