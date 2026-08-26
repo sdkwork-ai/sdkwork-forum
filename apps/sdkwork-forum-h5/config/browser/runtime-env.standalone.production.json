@@ -1,0 +1,19 @@
+{
+  "environment": "production",
+  "deploymentProfile": "standalone",
+  "profileId": "standalone.production",
+  "runtimeTarget": "browser",
+  "browserOriginMode": "same-origin",
+  "apiBaseUrl": "http://localhost:8080/app/v3/api",
+  "appId": "sdkwork-forum-h5",
+  "features": {
+    "enableNotifications": true,
+    "enableSearch": true,
+    "enableModeration": false
+  },
+  "appApiBaseUrl": "/",
+  "backendApiBaseUrl": "/",
+  "driveAppApiBaseUrl": "/",
+  "appbaseAppApiBaseUrl": "/",
+  "deployAppApiBaseUrl": "/"
+}
