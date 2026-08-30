@@ -45,11 +45,6 @@
           "manifestRef": "../../../../../sdkwork-iam/iam/modules/iam-kernel/iam.module.manifest.json",
           "inheritPermissions": true,
           "inheritRoles": false
-        },
-        {
-          "moduleId": "iam",
-          "manifestRef": "../../../../../sdkwork-iam/iam/modules/iam-kernel/iam.module.manifest.json",
-          "inheritPermissions": true
         }
       ],
       "bootstrapAccessTokenScope": {

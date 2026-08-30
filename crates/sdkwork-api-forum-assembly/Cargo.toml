@@ -18,5 +18,5 @@ sdkwork-database-spi.workspace = true
 sdkwork-database-sqlx.workspace = true
 sdkwork-forum-http-support.workspace = true
 sdkwork-forum-service-host = { workspace = true }
-sdkwork-routes-forum-app-api = { workspace = true }
-sdkwork-routes-forum-backend-api = { workspace = true }
+sdkwork-routes-forum-app-api.workspace = true
+sdkwork-routes-forum-backend-api.workspace = true

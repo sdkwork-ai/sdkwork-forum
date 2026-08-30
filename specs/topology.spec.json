@@ -406,6 +406,24 @@
         ],
         "healthSurfaces": [
           "application.public-ingress"
+        ],
+        "browserDeliveries": [
+          {
+            "id": "forum-static-v1",
+            "applicationRoot": "apps/sdkwork-forum-pc",
+            "clientArchitectures": [
+              "pc-web",
+              "h5"
+            ],
+            "originMode": "same-origin",
+            "deliveryMode": "gateway-static",
+            "apiSurfaceId": "application.public-ingress",
+            "hostProcessId": "application.public-ingress",
+            "buildOutput": "apps/sdkwork-forum-pc/dist",
+            "runtimeRootEnv": "SDKWORK_FORUM_PC_STATIC_ROOT",
+            "mountPath": "/",
+            "spaFallback": "/index.html"
+          }
         ]
       },
       "standalone.test": {
@@ -480,7 +498,8 @@
         ],
         "healthSurfaces": [
           "application.public-ingress"
-        ]
+        ],
+        "browserDeliveries": []
       },
       "cloud.test": {
         "processes": [
@@ -553,7 +572,8 @@
       },
       "standalone.demo": {
         "processes": [],
-        "healthSurfaces": []
+        "healthSurfaces": [],
+        "browserDeliveries": []
       },
       "cloud.demo": {
         "processes": [],

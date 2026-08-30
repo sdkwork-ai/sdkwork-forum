@@ -83,6 +83,7 @@ paths:
                           $ref: '#/components/schemas/ForumNode'
         default:
           $ref: '#/components/responses/Problem'
+      parameters: []
   /forum/nodes/{nodeId}:
     patch:
       tags:
@@ -240,6 +241,7 @@ paths:
                           $ref: '#/components/schemas/ForumTopicPrefix'
         default:
           $ref: '#/components/responses/Problem'
+      parameters: []
   /forum/topics:
     get:
       tags:
@@ -640,6 +642,7 @@ paths:
                           $ref: '#/components/schemas/ForumModerationCase'
         default:
           $ref: '#/components/responses/Problem'
+      parameters: []
   /forum/moderation/cases/{caseId}:
     get:
       tags:
@@ -698,6 +701,13 @@ paths:
       x-sdkwork-idempotent: true
       parameters:
       - $ref: '#/components/parameters/CaseId'
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
       requestBody:
         required: true
         content:
@@ -789,6 +799,7 @@ paths:
                           $ref: '#/components/schemas/ForumSanction'
         default:
           $ref: '#/components/responses/Problem'
+      parameters: []
   /forum/sanctions/{sanctionId}:
     patch:
       tags:
@@ -892,6 +903,7 @@ paths:
                           $ref: '#/components/schemas/ForumReputationRule'
         default:
           $ref: '#/components/responses/Problem'
+      parameters: []
   /forum/reputation/ledger:
     get:
       tags:
@@ -984,6 +996,7 @@ paths:
                           $ref: '#/components/schemas/ForumTrustLevel'
         default:
           $ref: '#/components/responses/Problem'
+      parameters: []
   /forum/badges:
     get:
       tags:
@@ -1048,6 +1061,7 @@ paths:
                           $ref: '#/components/schemas/ForumBadge'
         default:
           $ref: '#/components/responses/Problem'
+      parameters: []
   /forum/stats/boards:
     get:
       tags:
@@ -1141,6 +1155,7 @@ paths:
                           $ref: '#/components/schemas/ForumSearchReindexResult'
         default:
           $ref: '#/components/responses/Problem'
+      parameters: []
   /forum/audit/actions:
     get:
       tags:
@@ -1589,22 +1604,26 @@ components:
       - status
       properties:
         id:
-          type: integer
+          type: string
           format: int64
+          x-sdkwork-int64-string: true
         uuid:
           type: string
           format: uuid
         userId:
-          type: integer
+          type: string
           format: int64
+          x-sdkwork-int64-string: true
         caseId:
-          type: integer
+          type: string
           format: int64
           nullable: true
+          x-sdkwork-int64-string: true
         decisionId:
-          type: integer
+          type: string
           format: int64
           nullable: true
+          x-sdkwork-int64-string: true
         sanctionType:
           type: string
         reasonCode:
@@ -1621,9 +1640,10 @@ components:
           format: date-time
           nullable: true
         liftedBy:
-          type: integer
+          type: string
           format: int64
           nullable: true
+          x-sdkwork-int64-string: true
         status:
           type: string
         createdAt:
@@ -1654,8 +1674,9 @@ components:
       - status
       properties:
         id:
-          type: integer
+          type: string
           format: int64
+          x-sdkwork-int64-string: true
         uuid:
           type: string
           format: uuid
@@ -1664,12 +1685,14 @@ components:
         eventType:
           type: string
         points:
-          type: integer
+          type: string
           format: int64
+          x-sdkwork-int64-string: true
         dailyLimit:
-          type: integer
+          type: string
           format: int64
           nullable: true
+          x-sdkwork-int64-string: true
         status:
           type: string
         createdAt:
@@ -1702,28 +1725,33 @@ components:
       - reasonCode
       properties:
         id:
-          type: integer
+          type: string
           format: int64
+          x-sdkwork-int64-string: true
         uuid:
           type: string
           format: uuid
         userId:
-          type: integer
+          type: string
           format: int64
+          x-sdkwork-int64-string: true
         sourceType:
           type: string
         sourceId:
-          type: integer
+          type: string
           format: int64
           nullable: true
+          x-sdkwork-int64-string: true
         direction:
           type: string
         points:
-          type: integer
+          type: string
           format: int64
+          x-sdkwork-int64-string: true
         balanceAfter:
-          type: integer
+          type: string
           format: int64
+          x-sdkwork-int64-string: true
         reasonCode:
           type: string
         createdAt:
@@ -1756,8 +1784,9 @@ components:
       - status
       properties:
         id:
-          type: integer
+          type: string
           format: int64
+          x-sdkwork-int64-string: true
         uuid:
           type: string
           format: uuid
@@ -1797,8 +1826,9 @@ components:
       - status
       properties:
         id:
-          type: integer
+          type: string
           format: int64
+          x-sdkwork-int64-string: true
         uuid:
           type: string
           format: uuid
@@ -1845,31 +1875,38 @@ components:
       - lastCalculatedAt
       properties:
         id:
-          type: integer
+          type: string
           format: int64
+          x-sdkwork-int64-string: true
         uuid:
           type: string
           format: uuid
         boardId:
-          type: integer
+          type: string
           format: int64
+          x-sdkwork-int64-string: true
         topicCount:
-          type: integer
+          type: string
           format: int64
+          x-sdkwork-int64-string: true
         replyCount:
-          type: integer
+          type: string
           format: int64
+          x-sdkwork-int64-string: true
         memberCount:
-          type: integer
+          type: string
           format: int64
+          x-sdkwork-int64-string: true
         lastTopicId:
-          type: integer
+          type: string
           format: int64
           nullable: true
+          x-sdkwork-int64-string: true
         lastReplyId:
-          type: integer
+          type: string
           format: int64
           nullable: true
+          x-sdkwork-int64-string: true
         lastActivityAt:
           type: string
           format: date-time
@@ -1911,32 +1948,40 @@ components:
       - lastCalculatedAt
       properties:
         id:
-          type: integer
+          type: string
           format: int64
+          x-sdkwork-int64-string: true
         uuid:
           type: string
           format: uuid
         topicId:
-          type: integer
+          type: string
           format: int64
+          x-sdkwork-int64-string: true
         replyCount:
-          type: integer
+          type: string
           format: int64
+          x-sdkwork-int64-string: true
         viewCount:
-          type: integer
+          type: string
           format: int64
+          x-sdkwork-int64-string: true
         reactionCount:
-          type: integer
+          type: string
           format: int64
+          x-sdkwork-int64-string: true
         voteScore:
-          type: integer
+          type: string
           format: int64
+          x-sdkwork-int64-string: true
         bookmarkCount:
-          type: integer
+          type: string
           format: int64
+          x-sdkwork-int64-string: true
         reportCount:
-          type: integer
+          type: string
           format: int64
+          x-sdkwork-int64-string: true
         lastCalculatedAt:
           type: string
           format: date-time
@@ -1969,8 +2014,9 @@ components:
       - operatorId
       properties:
         id:
-          type: integer
+          type: string
           format: int64
+          x-sdkwork-int64-string: true
         uuid:
           type: string
           format: uuid
@@ -1979,12 +2025,14 @@ components:
         targetType:
           type: string
         targetId:
-          type: integer
+          type: string
           format: int64
           nullable: true
+          x-sdkwork-int64-string: true
         operatorId:
-          type: integer
+          type: string
           format: int64
+          x-sdkwork-int64-string: true
         detail:
           type: string
           nullable: true

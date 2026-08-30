@@ -5,8 +5,9 @@
     "key": "sdkwork-forum-h5",
     "name": "sdkwork-forum-h5",
     "displayName": "SDKWork Forum H5",
-    "appType": "H5",
-    "description": "Forum H5 mobile application for SDKWork communication capabilities."
+    "appType": "APP_HTML",
+    "description": "Forum H5 mobile application for SDKWork communication capabilities.",
+    "officialWebsiteUrl": "https://sdkwork.com/apps/sdkwork-forum-h5"
   },
   "backend": {
     "domain": "communication",
@@ -44,14 +45,169 @@
     "supportedDeploymentProfiles": [
       "cloud"
     ],
-    "defaultDeploymentProfile": "cloud"
+    "defaultDeploymentProfile": "cloud",
+    "family": "server",
+    "framework": "rust-axum"
+  },
+  "media": {
+    "icons": {
+      "primary": {
+        "id": "sdkwork-forum-h5-primary-icon",
+        "type": "ICON",
+        "purpose": "PRIMARY",
+        "url": "https://cdn.sdkwork.com/apps/sdkwork-forum-h5/assets/icon-1024.png",
+        "platform": "APP",
+        "locale": "en-US",
+        "width": 1024,
+        "height": 1024,
+        "format": "PNG",
+        "fileSizeBytes": 524288,
+        "alphaChannel": false,
+        "sortOrder": 0,
+        "enabled": true,
+        "metadata": {
+          "generatedPlaceholder": true
+        }
+      },
+      "platform": [],
+      "metadata": {
+        "generatedPlaceholder": true
+      }
+    },
+    "screenshots": [
+      {
+        "id": "sdkwork-forum-h5-web-screenshot",
+        "type": "SCREENSHOT",
+        "purpose": "CATALOG_SCREENSHOT",
+        "url": "https://cdn.sdkwork.com/apps/sdkwork-forum-h5/media/web-screenshot.png",
+        "platform": "WEB",
+        "locale": "en-US",
+        "deviceClass": "BROWSER",
+        "displayType": "WEB_DESKTOP",
+        "width": 1920,
+        "height": 1080,
+        "format": "PNG",
+        "fileSizeBytes": 1048576,
+        "alphaChannel": false,
+        "caption": "SDKWork Forum H5 product screenshot.",
+        "sortOrder": 0,
+        "enabled": true,
+        "metadata": {
+          "generatedPlaceholder": true,
+          "altText": "SDKWork Forum H5 app screenshot."
+        }
+      }
+    ],
+    "previews": [
+      {
+        "id": "sdkwork-forum-h5-catalog-preview",
+        "type": "PREVIEW_IMAGE",
+        "purpose": "CATALOG_PREVIEW",
+        "url": "https://cdn.sdkwork.com/apps/sdkwork-forum-h5/media/preview-cover.png",
+        "platform": "WEB",
+        "locale": "en-US",
+        "width": 1600,
+        "height": 900,
+        "format": "PNG",
+        "fileSizeBytes": 786432,
+        "alphaChannel": false,
+        "caption": "SDKWork Forum H5 preview.",
+        "sortOrder": 0,
+        "enabled": true,
+        "metadata": {
+          "generatedPlaceholder": true,
+          "altText": "SDKWork Forum H5 preview cover."
+        }
+      }
+    ],
+    "metadata": {
+      "assetVersion": "0.1.0",
+      "defaultLocale": "en-US"
+    }
+  },
+  "publish": {
+    "status": "ACTIVE",
+    "platforms": [
+      "WEB"
+    ],
+    "installPlatforms": [
+      "WEB"
+    ],
+    "defaultPackageId": "linux-x64-cloud-server-tar-gz",
+    "installSkill": {
+      "name": "sdkwork-skills-app"
+    },
+    "stores": [],
+    "storeUrl": "https://sdkwork.com/apps/sdkwork-forum-h5"
+  },
+  "artifacts": {
+    "installConfig": {
+      "defaultPackageId": "linux-x64-cloud-server-tar-gz",
+      "installCommand": "sdkwork install sdkwork-forum-h5",
+      "launchCommand": "sdkwork open sdkwork-forum-h5",
+      "uninstallCommand": "sdkwork uninstall sdkwork-forum-h5",
+      "packages": [
+        {
+          "id": "linux-x64-cloud-server-tar-gz",
+          "name": "Sdkwork Forum H5 cloud server archive",
+          "sourceType": "BINARY_URL",
+          "packageFormat": "TAR_GZ",
+          "platform": "API",
+          "url": "https://cdn.sdkwork.com/apps/sdkwork-forum-h5/STABLE/0.1.0/linux-x64-cloud-server-tar-gz-0.1.0.tar.gz",
+          "architecture": "x64",
+          "checksumAlgorithm": "SHA-256",
+          "checksum": "28b17e7b95f41e088d3c916ebe33a763a800264df9ff2bacf8085e70f905617f",
+          "deploymentProfile": "cloud",
+          "runtimeTarget": "server",
+          "profileBinding": "fixed",
+          "enabled": true,
+          "metadata": {
+            "releaseBuildDeferred": false
+          }
+        }
+      ]
+    }
   },
   "release": {
     "version": "0.1.0",
-    "channel": "dev"
+    "channel": "dev",
+    "currentVersion": "0.1.0",
+    "defaultChannel": "STABLE",
+    "latest": {
+      "STABLE": "0.1.0"
+    },
+    "notes": [
+      {
+        "version": "0.1.0",
+        "releaseChannel": "STABLE",
+        "title": "SDKWork Forum H5 0.1.0",
+        "summary": "SDKWork Forum H5 initialized standard release.",
+        "content": "Initial SDKWork App Standard v3 manifest for SDKWork Forum H5.",
+        "highlights": [
+          "SDKWork App Standard v3 configuration initialized",
+          "platform_app projection metadata standardized",
+          "Download package matrix normalized"
+        ],
+        "packageIds": [
+          "linux-x64-cloud-server-tar-gz"
+        ],
+        "publishedAt": "2026-05-07T00:00:00Z",
+        "current": true,
+        "forceUpdate": false,
+        "minSupportedVersion": "0.1.0",
+        "metadata": {}
+      }
+    ]
+  },
+  "security": {
+    "checksumRequired": false,
+    "signatureRequired": false,
+    "sbomRequired": false
   },
   "metadata": {
     "standardVersion": "2026-06-12",
-    "architectureStandard": "APP_H5_ARCHITECTURE_SPEC.md"
+    "architectureStandard": "APP_H5_ARCHITECTURE_SPEC.md",
+    "deploymentConfig": "etc/sdkwork.deployment.config.json",
+    "standardOwner": "sdkwork-platform"
   }
 }
