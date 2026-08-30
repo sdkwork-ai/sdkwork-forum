@@ -74,11 +74,6 @@
       "dev"
     ]
   },
-  "environments": {
-    "local": {
-      "apiBaseUrl": "http://localhost:8080"
-    }
-  },
   "artifacts": {
     "packages": []
   },
