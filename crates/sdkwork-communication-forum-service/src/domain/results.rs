@@ -1,5 +1,5 @@
 use super::models::*;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use serde_json;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -19,7 +19,11 @@ impl<T> CursorPage<T> {
     }
 
     pub fn new(items: Vec<T>, next_cursor: Option<String>, has_more: bool) -> Self {
-        Self { items, next_cursor, has_more }
+        Self {
+            items,
+            next_cursor,
+            has_more,
+        }
     }
 }
 
@@ -41,7 +45,11 @@ impl CommandResult {
         }
     }
 
-    pub fn success_with_status(id: i64, uuid: impl Into<String>, status: impl Into<String>) -> Self {
+    pub fn success_with_status(
+        id: i64,
+        uuid: impl Into<String>,
+        status: impl Into<String>,
+    ) -> Self {
         Self {
             success: true,
             id: Some(id),

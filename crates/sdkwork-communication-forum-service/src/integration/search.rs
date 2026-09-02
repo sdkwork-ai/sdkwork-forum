@@ -63,8 +63,12 @@ impl HttpForumSearchPort {
         Self {
             base_url: Arc::new(base_url.into().trim_end_matches('/').to_string()),
             index_id: Arc::new(index_id.into()),
-            auth_token: auth_token.filter(|value| !value.trim().is_empty()).map(Arc::new),
-            access_token: access_token.filter(|value| !value.trim().is_empty()).map(Arc::new),
+            auth_token: auth_token
+                .filter(|value| !value.trim().is_empty())
+                .map(Arc::new),
+            access_token: access_token
+                .filter(|value| !value.trim().is_empty())
+                .map(Arc::new),
             client: ureq::Agent::new(),
         }
     }
@@ -140,7 +144,10 @@ impl ForumSearchPort for HttpForumSearchPort {
             "full": true,
         });
         if board_id.is_some() {
-            tracing::debug!(?board_id, "forum search rebuild scoped board ignored by search job API");
+            tracing::debug!(
+                ?board_id,
+                "forum search rebuild scoped board ignored by search job API"
+            );
         }
 
         self.apply_backend_auth(
@@ -160,20 +167,12 @@ mod tests {
 
     #[test]
     fn document_id_joins_source_type_and_id() {
-        assert_eq!(
-            HttpForumSearchPort::document_id("topic", "42"),
-            "topic:42"
-        );
+        assert_eq!(HttpForumSearchPort::document_id("topic", "42"), "topic:42");
     }
 
     #[test]
     fn document_path_uses_search_backend_api_shape() {
-        let port = HttpForumSearchPort::configured(
-            "http://search.local",
-            "forum-main",
-            None,
-            None,
-        );
+        let port = HttpForumSearchPort::configured("http://search.local", "forum-main", None, None);
         assert_eq!(
             port.document_path("topic:7"),
             "http://search.local/backend/v3/api/search/indexes/forum-main/documents/topic:7"

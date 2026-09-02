@@ -93,13 +93,28 @@ pub const TABLE_GROUPS: &[(&str, &str)] = &[
 ];
 
 pub const TENANT_ENTITY_FIELD_SET: &[&str] = &[
-    "id", "uuid", "tenant_id", "organization_id", "data_scope",
-    "status", "version", "created_at", "updated_at", "deleted_at", "deleted_by",
+    "id",
+    "uuid",
+    "tenant_id",
+    "organization_id",
+    "data_scope",
+    "status",
+    "version",
+    "created_at",
+    "updated_at",
+    "deleted_at",
+    "deleted_by",
 ];
 
 pub const INTEGRATION_LOG_FIELD_SET: &[&str] = &[
-    "id", "uuid", "tenant_id", "organization_id",
-    "status", "version", "created_at", "updated_at",
+    "id",
+    "uuid",
+    "tenant_id",
+    "organization_id",
+    "status",
+    "version",
+    "created_at",
+    "updated_at",
 ];
 
 pub fn ensure_known_table(table: &str) -> bool {
@@ -107,26 +122,34 @@ pub fn ensure_known_table(table: &str) -> bool {
 }
 
 pub fn table_group(table: &str) -> Option<&'static str> {
-    TABLE_GROUPS.iter().find(|(t, _)| *t == table).map(|(_, g)| *g)
+    TABLE_GROUPS
+        .iter()
+        .find(|(t, _)| *t == table)
+        .map(|(_, g)| *g)
 }
 
 pub fn tables_in_group(group: &str) -> Vec<&'static str> {
-    TABLE_GROUPS.iter().filter(|(_, g)| *g == group).map(|(t, _)| *t).collect()
+    TABLE_GROUPS
+        .iter()
+        .filter(|(_, g)| *g == group)
+        .map(|(t, _)| *t)
+        .collect()
 }
 
 pub fn is_tenant_scoped(table: &str) -> bool {
-    ensure_known_table(table) && !matches!(table,
-        "forum_outbox_event"
-        | "forum_inbox_event"
-        | "forum_idempotency_record"
-    )
+    ensure_known_table(table)
+        && !matches!(
+            table,
+            "forum_outbox_event" | "forum_inbox_event" | "forum_idempotency_record"
+        )
 }
 
 pub fn requires_idempotency(table: &str) -> bool {
-    matches!(table,
+    matches!(
+        table,
         "forum_outbox_event"
-        | "forum_inbox_event"
-        | "forum_idempotency_record"
-        | "forum_reputation_ledger"
+            | "forum_inbox_event"
+            | "forum_idempotency_record"
+            | "forum_reputation_ledger"
     )
 }

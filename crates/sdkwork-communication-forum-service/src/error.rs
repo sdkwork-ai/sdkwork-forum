@@ -2,18 +2,45 @@ use std::fmt;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ForumServiceError {
-    NotImplemented { operation: &'static str },
-    Validation { message: String },
-    PermissionDenied { permission: &'static str },
-    Conflict { message: String },
-    NotFound { resource: &'static str, id: Option<String> },
-    OptimisticLock { resource: &'static str, id: String },
-    Sanctioned { reason: String },
-    BoardClosed { board_id: i64 },
-    TopicLocked { topic_id: i64 },
-    DuplicateReport { target_type: String, target_id: i64 },
-    IdempotencyConflict { key: String },
-    Internal { message: String },
+    NotImplemented {
+        operation: &'static str,
+    },
+    Validation {
+        message: String,
+    },
+    PermissionDenied {
+        permission: &'static str,
+    },
+    Conflict {
+        message: String,
+    },
+    NotFound {
+        resource: &'static str,
+        id: Option<String>,
+    },
+    OptimisticLock {
+        resource: &'static str,
+        id: String,
+    },
+    Sanctioned {
+        reason: String,
+    },
+    BoardClosed {
+        board_id: i64,
+    },
+    TopicLocked {
+        topic_id: i64,
+    },
+    DuplicateReport {
+        target_type: String,
+        target_id: i64,
+    },
+    IdempotencyConflict {
+        key: String,
+    },
+    Internal {
+        message: String,
+    },
 }
 
 impl ForumServiceError {
@@ -22,7 +49,9 @@ impl ForumServiceError {
     }
 
     pub fn validation(message: impl Into<String>) -> Self {
-        Self::Validation { message: message.into() }
+        Self::Validation {
+            message: message.into(),
+        }
     }
 
     pub fn permission_denied(permission: &'static str) -> Self {
@@ -30,11 +59,16 @@ impl ForumServiceError {
     }
 
     pub fn conflict(message: impl Into<String>) -> Self {
-        Self::Conflict { message: message.into() }
+        Self::Conflict {
+            message: message.into(),
+        }
     }
 
     pub fn not_found(resource: &'static str, id: impl Into<String>) -> Self {
-        Self::NotFound { resource, id: Some(id.into()) }
+        Self::NotFound {
+            resource,
+            id: Some(id.into()),
+        }
     }
 
     pub fn not_found_no_id(resource: &'static str) -> Self {
@@ -42,11 +76,16 @@ impl ForumServiceError {
     }
 
     pub fn optimistic_lock(resource: &'static str, id: impl Into<String>) -> Self {
-        Self::OptimisticLock { resource, id: id.into() }
+        Self::OptimisticLock {
+            resource,
+            id: id.into(),
+        }
     }
 
     pub fn sanctioned(reason: impl Into<String>) -> Self {
-        Self::Sanctioned { reason: reason.into() }
+        Self::Sanctioned {
+            reason: reason.into(),
+        }
     }
 
     pub fn board_closed(board_id: i64) -> Self {
@@ -58,7 +97,10 @@ impl ForumServiceError {
     }
 
     pub fn duplicate_report(target_type: impl Into<String>, target_id: i64) -> Self {
-        Self::DuplicateReport { target_type: target_type.into(), target_id }
+        Self::DuplicateReport {
+            target_type: target_type.into(),
+            target_id,
+        }
     }
 
     pub fn idempotency_conflict(key: impl Into<String>) -> Self {
@@ -66,7 +108,9 @@ impl ForumServiceError {
     }
 
     pub fn internal(message: impl Into<String>) -> Self {
-        Self::Internal { message: message.into() }
+        Self::Internal {
+            message: message.into(),
+        }
     }
 
     pub fn error_code(&self) -> &'static str {
@@ -115,11 +159,16 @@ impl fmt::Display for ForumServiceError {
                 Some(id) => write!(f, "{resource} not found: {id}"),
                 None => write!(f, "{resource} not found"),
             },
-            Self::OptimisticLock { resource, id } => write!(f, "optimistic lock failed for {resource}: {id}"),
+            Self::OptimisticLock { resource, id } => {
+                write!(f, "optimistic lock failed for {resource}: {id}")
+            }
             Self::Sanctioned { reason } => write!(f, "user sanctioned: {reason}"),
             Self::BoardClosed { board_id } => write!(f, "board closed: {board_id}"),
             Self::TopicLocked { topic_id } => write!(f, "topic locked: {topic_id}"),
-            Self::DuplicateReport { target_type, target_id } => {
+            Self::DuplicateReport {
+                target_type,
+                target_id,
+            } => {
                 write!(f, "duplicate report for {target_type}:{target_id}")
             }
             Self::IdempotencyConflict { key } => write!(f, "idempotency conflict: {key}"),

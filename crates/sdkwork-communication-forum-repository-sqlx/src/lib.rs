@@ -1,6 +1,6 @@
-pub mod schema;
-pub mod repo_impl;
 pub mod bootstrap;
+pub mod repo_impl;
+pub mod schema;
 
 use std::sync::Arc;
 
@@ -20,8 +20,8 @@ impl SqlxForumRepository {
             .ok()
             .and_then(|v| v.parse().ok())
             .unwrap_or(1);
-        let gen = SnowflakeIdGenerator::new(node_id)
-            .expect("invalid SDKWORK_FORUM_SNOWFLAKE_NODE_ID");
+        let gen =
+            SnowflakeIdGenerator::new(node_id).expect("invalid SDKWORK_FORUM_SNOWFLAKE_NODE_ID");
         Self {
             pool,
             id_gen: Arc::new(gen),

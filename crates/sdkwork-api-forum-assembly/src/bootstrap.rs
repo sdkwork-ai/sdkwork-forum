@@ -12,7 +12,9 @@ use sdkwork_database_spi::{DefaultDatabaseModule, LocaleTag, SeedProfile};
 use sdkwork_database_sqlx::DatabasePool;
 use sdkwork_forum_http_support::{context::ForumContextInjector, AppState};
 use sdkwork_forum_service_host::{default_seed_locale, default_seed_profile, ForumServiceHost};
-use sdkwork_web_bootstrap::{ApiAssemblyContribution, DatabasePoolReadinessCheck, ReadinessCheck};
+use sdkwork_web_bootstrap::{
+    ApiAssemblyContribution, DatabasePoolReadinessCheck, ReadinessCheck, WebModule,
+};
 use sdkwork_web_core::HttpRouteManifest;
 
 /// Host-neutral API assembly bundle: the indivisible contribution plus the
@@ -93,4 +95,21 @@ pub async fn assemble_api_router_with_pool(pool: DatabasePool) -> Result<ApiAsse
         seed_locale: default_seed_locale(),
         seed_profile: default_seed_profile(),
     })
+}
+
+/// Canonical Web Module definition for this application
+/// (API_ASSEMBLY_SPEC §4.1.1): the complete HTTP surface — every route,
+/// manifest, and OpenAPI document of this owner — as one installable module.
+pub async fn web_module() -> Result<WebModule, String> {
+    Ok(WebModule::from_contribution(
+        assemble_api_router().await.contribution,
+    ))
+}
+
+/// Same as [`web_module`] but composed on a process-shared database pool
+/// (platform gateways, API_ASSEMBLY_SPEC §4.1.1).
+pub async fn web_module_with_pool(pool: DatabasePool) -> Result<WebModule, String> {
+    Ok(WebModule::from_contribution(
+        assemble_api_router_with_pool(pool).await?.contribution,
+    ))
 }

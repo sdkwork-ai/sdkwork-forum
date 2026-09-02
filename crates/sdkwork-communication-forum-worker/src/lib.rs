@@ -1,9 +1,9 @@
-use sdkwork_communication_forum_service::ForumService;
 use sdkwork_communication_forum_service::domain::commands::{
     FanoutNotificationsCommand, ListModerationQueueCommand, PublishOutboxCommand,
     RebuildSearchProjectionCommand, RebuildStatsCommand,
 };
 use sdkwork_communication_forum_service::ports::repository::ForumRepository;
+use sdkwork_communication_forum_service::ForumService;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ForumWorkerJob {

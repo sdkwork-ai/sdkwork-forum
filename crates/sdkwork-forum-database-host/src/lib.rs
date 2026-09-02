@@ -30,8 +30,8 @@ pub async fn bootstrap_forum_database(pool: DatabasePool) -> Result<ForumDatabas
     let manifest = DatabaseManifest::from_file(module.manifest_path())
         .map_err(|error| format!("read forum database manifest failed: {error}"))?;
     let options = lifecycle_options_from_env("FORUM", &manifest);
-    let orchestrator = LifecycleOrchestrator::new(pool.clone(), module.clone())
-        .with_applied_by("sdkwork-forum");
+    let orchestrator =
+        LifecycleOrchestrator::new(pool.clone(), module.clone()).with_applied_by("sdkwork-forum");
 
     orchestrator
         .init()

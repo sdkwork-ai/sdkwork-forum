@@ -3,7 +3,12 @@ use std::sync::Arc;
 pub trait ForumNotificationPort: Send + Sync {
     fn publish_forum_event(&self, event_type: &str, aggregate_id: &str) -> Result<(), String>;
     fn publish_moderation_alert(&self, case_id: i64, severity: &str) -> Result<(), String>;
-    fn publish_subscription_notification(&self, user_id: i64, event_type: &str, target_id: i64) -> Result<(), String>;
+    fn publish_subscription_notification(
+        &self,
+        user_id: i64,
+        event_type: &str,
+        target_id: i64,
+    ) -> Result<(), String>;
 }
 
 pub struct NoopForumNotificationPort;
@@ -46,7 +51,12 @@ impl ForumNotificationPort for LoggingForumNotificationPort {
         event_type: &str,
         target_id: i64,
     ) -> Result<(), String> {
-        tracing::info!(user_id, event_type, target_id, "forum subscription notification");
+        tracing::info!(
+            user_id,
+            event_type,
+            target_id,
+            "forum subscription notification"
+        );
         Ok(())
     }
 }

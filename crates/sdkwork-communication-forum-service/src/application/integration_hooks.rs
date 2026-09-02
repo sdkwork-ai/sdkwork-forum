@@ -49,23 +49,13 @@ impl<R: ForumRepository> ForumService<R> {
 
     pub(super) fn remove_search_document_best_effort(&self, source_type: &str, source_id: &str) {
         if let Err(error) = self.search_port.delete_document(source_type, source_id) {
-            tracing::warn!(
-                source_type,
-                source_id,
-                error,
-                "forum search delete failed"
-            );
+            tracing::warn!(source_type, source_id, error, "forum search delete failed");
         }
     }
 
     fn index_search_best_effort(&self, source_type: &str, source_id: &str) {
         if let Err(error) = self.search_port.index_document(source_type, source_id) {
-            tracing::warn!(
-                source_type,
-                source_id,
-                error,
-                "forum search index failed"
-            );
+            tracing::warn!(source_type, source_id, error, "forum search index failed");
         }
     }
 

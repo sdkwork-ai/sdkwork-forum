@@ -1,4 +1,5 @@
 use super::SqlxForumRepository;
+use md5::{Digest, Md5};
 use sdkwork_communication_forum_service::domain::commands::*;
 use sdkwork_communication_forum_service::domain::models::*;
 use sdkwork_communication_forum_service::domain::results::*;
@@ -7,18 +8,20 @@ use sdkwork_communication_forum_service::value_objects::ForumRequestContext;
 use sdkwork_communication_forum_service::ForumServiceError;
 use sqlx::Row;
 use uuid::Uuid;
-use md5::{Md5, Digest};
 
 macro_rules! run_db {
     ($block:expr) => {
-        tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on($block)
-        })
+        tokio::task::block_in_place(|| tokio::runtime::Handle::current().block_on($block))
     };
 }
 
 fn parse_cursor(cursor: &Option<String>) -> i64 {
-    cursor.as_deref().unwrap_or("0").parse::<i64>().unwrap_or(0).max(0)
+    cursor
+        .as_deref()
+        .unwrap_or("0")
+        .parse::<i64>()
+        .unwrap_or(0)
+        .max(0)
 }
 
 fn compute_hash(body: &str) -> String {
@@ -29,7 +32,11 @@ fn compute_hash(body: &str) -> String {
 
 fn compute_excerpt(body: &str) -> Option<String> {
     let s: String = body.chars().take(500).collect();
-    if s.is_empty() { None } else { Some(s) }
+    if s.is_empty() {
+        None
+    } else {
+        Some(s)
+    }
 }
 
 fn fmt_ts(dt: chrono::DateTime<chrono::Utc>) -> String {
@@ -378,7 +385,6 @@ fn row_to_moderation_decision(row: &sqlx::postgres::PgRow) -> ForumModerationDec
     }
 }
 
-
 fn row_to_search_document(row: &sqlx::postgres::PgRow) -> ForumSearchDocument {
     ForumSearchDocument {
         id: row.get("id"),
@@ -586,7 +592,11 @@ fn row_to_outbox_event(row: &sqlx::postgres::PgRow) -> ForumOutboxEvent {
 }
 
 impl ForumRepository for SqlxForumRepository {
-    fn list_node_tree(&self, ctx: &ForumRequestContext, command: &ListNodeTreeCommand) -> Result<NodeTreeResult, ForumServiceError> {
+    fn list_node_tree(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &ListNodeTreeCommand,
+    ) -> Result<NodeTreeResult, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let rows = run_db!(async {
             sqlx::query(
@@ -595,18 +605,23 @@ impl ForumRepository for SqlxForumRepository {
                    AND deleted_at IS NULL
                    AND ($2::bigint IS NULL OR space_id = $2)
                    AND ($3::bigint IS NULL OR parent_id = $3)
-                 ORDER BY sort_order ASC"
+                 ORDER BY sort_order ASC",
             )
             .bind(tenant_id)
             .bind(command.space_id)
             .bind(command.parent_id)
             .fetch_all(&self.pool)
             .await
-        }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
+        })
+        .map_err(|e| ForumServiceError::internal(e.to_string()))?;
         Ok(rows.iter().map(row_to_node).collect())
     }
 
-    fn list_nodes(&self, ctx: &ForumRequestContext, command: &ListNodesCommand) -> Result<NodePageResult, ForumServiceError> {
+    fn list_nodes(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &ListNodesCommand,
+    ) -> Result<NodePageResult, ForumServiceError> {
         let offset = parse_cursor(&command.cursor);
         let limit = command.limit.max(1) as i64;
         let tenant_id = ctx.tenant_id_value();
@@ -619,7 +634,7 @@ impl ForumRepository for SqlxForumRepository {
                    AND ($2::bigint IS NULL OR space_id = $2)
                    AND ($3::text IS NULL OR node_type = $3)
                  ORDER BY sort_order ASC, id ASC
-                 LIMIT $4 OFFSET $5"
+                 LIMIT $4 OFFSET $5",
             )
             .bind(tenant_id)
             .bind(command.space_id)
@@ -628,15 +643,24 @@ impl ForumRepository for SqlxForumRepository {
             .bind(offset)
             .fetch_all(&self.pool)
             .await
-        }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
+        })
+        .map_err(|e| ForumServiceError::internal(e.to_string()))?;
 
         let has_more = rows.len() as i64 > limit;
         let items: Vec<ForumNode> = rows.iter().take(limit as usize).map(row_to_node).collect();
-        let next_cursor = if has_more { Some((offset + limit).to_string()) } else { None };
+        let next_cursor = if has_more {
+            Some((offset + limit).to_string())
+        } else {
+            None
+        };
         Ok(CursorPage::new(items, next_cursor, has_more))
     }
 
-    fn list_topics(&self, ctx: &ForumRequestContext, command: &ListTopicsCommand) -> Result<TopicPageResult, ForumServiceError> {
+    fn list_topics(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &ListTopicsCommand,
+    ) -> Result<TopicPageResult, ForumServiceError> {
         let offset = parse_cursor(&command.cursor);
         let limit = command.limit.max(1) as i64;
         let tenant_id = ctx.tenant_id_value();
@@ -651,7 +675,7 @@ impl ForumRepository for SqlxForumRepository {
                    AND ($2::bigint IS NULL OR board_id = $2)
                    AND ($3::text IS NULL OR moderation_status = $3)
                  ORDER BY last_activity_at DESC
-                 LIMIT $4 OFFSET $5"
+                 LIMIT $4 OFFSET $5",
             )
             .bind(tenant_id)
             .bind(board_filter)
@@ -660,15 +684,24 @@ impl ForumRepository for SqlxForumRepository {
             .bind(offset)
             .fetch_all(&self.pool)
             .await
-        }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
+        })
+        .map_err(|e| ForumServiceError::internal(e.to_string()))?;
 
         let has_more = rows.len() as i64 > limit;
         let items: Vec<ForumTopic> = rows.iter().take(limit as usize).map(row_to_topic).collect();
-        let next_cursor = if has_more { Some((offset + limit).to_string()) } else { None };
+        let next_cursor = if has_more {
+            Some((offset + limit).to_string())
+        } else {
+            None
+        };
         Ok(CursorPage::new(items, next_cursor, has_more))
     }
 
-    fn create_topic(&self, ctx: &ForumRequestContext, command: &CreateTopicCommand) -> Result<ForumTopic, ForumServiceError> {
+    fn create_topic(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &CreateTopicCommand,
+    ) -> Result<ForumTopic, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let org_id = ctx.organization_id_value();
         let user_id = ctx.user_id_value();
@@ -703,7 +736,7 @@ impl ForumRepository for SqlxForumRepository {
                 ) VALUES (
                     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'visible', $13,
                     0, $14, 'active', 1, NOW(), NOW(), NOW(), $15, $16, 'default'
-                ) RETURNING *"
+                ) RETURNING *",
             )
             .bind(id)
             .bind(&uuid)
@@ -723,22 +756,28 @@ impl ForumRepository for SqlxForumRepository {
             .bind(org_id)
             .fetch_one(&self.pool)
             .await
-        }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
+        })
+        .map_err(|e| ForumServiceError::internal(e.to_string()))?;
 
         Ok(row_to_topic(&row))
     }
 
-    fn retrieve_topic(&self, ctx: &ForumRequestContext, topic_id: i64) -> Result<ForumTopic, ForumServiceError> {
+    fn retrieve_topic(
+        &self,
+        ctx: &ForumRequestContext,
+        topic_id: i64,
+    ) -> Result<ForumTopic, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let row = run_db!(async {
             sqlx::query(
-                "SELECT * FROM forum_topic WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL"
+                "SELECT * FROM forum_topic WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL",
             )
             .bind(topic_id)
             .bind(tenant_id)
             .fetch_one(&self.pool)
             .await
-        }).map_err(|e| match e {
+        })
+        .map_err(|e| match e {
             sqlx::Error::RowNotFound => ForumServiceError::not_found("topic", topic_id.to_string()),
             e => ForumServiceError::internal(e.to_string()),
         })?;
@@ -757,21 +796,26 @@ impl ForumRepository for SqlxForumRepository {
                  WHERE tenant_id = $1
                    AND slug = $2
                    AND deleted_at IS NULL
-                   AND ($3::bigint IS NULL OR board_id = $3)"
+                   AND ($3::bigint IS NULL OR board_id = $3)",
             )
             .bind(tenant_id)
             .bind(&command.slug)
             .bind(command.board_id)
             .fetch_one(&self.pool)
             .await
-        }).map_err(|e| match e {
+        })
+        .map_err(|e| match e {
             sqlx::Error::RowNotFound => ForumServiceError::not_found("topic", command.slug.clone()),
             e => ForumServiceError::internal(e.to_string()),
         })?;
         Ok(row_to_topic(&row))
     }
 
-    fn update_topic(&self, ctx: &ForumRequestContext, command: &UpdateTopicCommand) -> Result<ForumTopic, ForumServiceError> {
+    fn update_topic(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &UpdateTopicCommand,
+    ) -> Result<ForumTopic, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let new_hash = command.body.as_deref().map(compute_hash);
         let new_excerpt = command.body.as_ref().and_then(|b| compute_excerpt(b));
@@ -787,7 +831,7 @@ impl ForumRepository for SqlxForumRepository {
                      version = version + 1,
                      updated_at = NOW()
                  WHERE id = $4 AND tenant_id = $5 AND deleted_at IS NULL
-                 RETURNING *"
+                 RETURNING *",
             )
             .bind(command.title.as_deref())
             .bind(command.body.as_deref())
@@ -798,14 +842,21 @@ impl ForumRepository for SqlxForumRepository {
             .bind(new_excerpt.as_deref())
             .fetch_one(&self.pool)
             .await
-        }).map_err(|e| match e {
-            sqlx::Error::RowNotFound => ForumServiceError::not_found("topic", command.topic_id.to_string()),
+        })
+        .map_err(|e| match e {
+            sqlx::Error::RowNotFound => {
+                ForumServiceError::not_found("topic", command.topic_id.to_string())
+            }
             e => ForumServiceError::internal(e.to_string()),
         })?;
         Ok(row_to_topic(&row))
     }
 
-    fn delete_topic(&self, ctx: &ForumRequestContext, command: &DeleteTopicCommand) -> Result<CommandResult, ForumServiceError> {
+    fn delete_topic(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &DeleteTopicCommand,
+    ) -> Result<CommandResult, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let user_id = ctx.user_id_value();
         let row = run_db!(async {
@@ -813,21 +864,31 @@ impl ForumRepository for SqlxForumRepository {
                 "UPDATE forum_topic
                  SET deleted_at = NOW(), deleted_by = $1, status = 'deleted'
                  WHERE id = $2 AND tenant_id = $3 AND deleted_at IS NULL
-                 RETURNING id, uuid"
+                 RETURNING id, uuid",
             )
             .bind(user_id)
             .bind(command.topic_id)
             .bind(tenant_id)
             .fetch_one(&self.pool)
             .await
-        }).map_err(|e| match e {
-            sqlx::Error::RowNotFound => ForumServiceError::not_found("topic", command.topic_id.to_string()),
+        })
+        .map_err(|e| match e {
+            sqlx::Error::RowNotFound => {
+                ForumServiceError::not_found("topic", command.topic_id.to_string())
+            }
             e => ForumServiceError::internal(e.to_string()),
         })?;
-        Ok(CommandResult::success(row.get("id"), row.get::<String, _>("uuid")))
+        Ok(CommandResult::success(
+            row.get("id"),
+            row.get::<String, _>("uuid"),
+        ))
     }
 
-    fn list_replies(&self, ctx: &ForumRequestContext, command: &ListRepliesCommand) -> Result<ReplyPageResult, ForumServiceError> {
+    fn list_replies(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &ListRepliesCommand,
+    ) -> Result<ReplyPageResult, ForumServiceError> {
         let offset = parse_cursor(&command.cursor);
         let limit = command.limit.max(1) as i64;
         let tenant_id = ctx.tenant_id_value();
@@ -837,7 +898,7 @@ impl ForumRepository for SqlxForumRepository {
                 "SELECT * FROM forum_topic_reply
                  WHERE topic_id = $1 AND tenant_id = $2 AND deleted_at IS NULL
                  ORDER BY reply_no ASC
-                 LIMIT $3 OFFSET $4"
+                 LIMIT $3 OFFSET $4",
             )
             .bind(command.topic_id)
             .bind(tenant_id)
@@ -845,15 +906,24 @@ impl ForumRepository for SqlxForumRepository {
             .bind(offset)
             .fetch_all(&self.pool)
             .await
-        }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
+        })
+        .map_err(|e| ForumServiceError::internal(e.to_string()))?;
 
         let has_more = rows.len() as i64 > limit;
         let items: Vec<ForumReply> = rows.iter().take(limit as usize).map(row_to_reply).collect();
-        let next_cursor = if has_more { Some((offset + limit).to_string()) } else { None };
+        let next_cursor = if has_more {
+            Some((offset + limit).to_string())
+        } else {
+            None
+        };
         Ok(CursorPage::new(items, next_cursor, has_more))
     }
 
-    fn create_reply(&self, ctx: &ForumRequestContext, command: &CreateReplyCommand) -> Result<ForumReply, ForumServiceError> {
+    fn create_reply(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &CreateReplyCommand,
+    ) -> Result<ForumReply, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let org_id = ctx.organization_id_value();
         let user_id = ctx.user_id_value();
@@ -896,7 +966,7 @@ impl ForumRepository for SqlxForumRepository {
                 ) VALUES (
                     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'visible',
                     0, $12, 'active', 1, NOW(), NOW(), $13, $14, 'default'
-                ) RETURNING *"
+                ) RETURNING *",
             )
             .bind(id)
             .bind(&uuid)
@@ -914,12 +984,17 @@ impl ForumRepository for SqlxForumRepository {
             .bind(org_id)
             .fetch_one(&self.pool)
             .await
-        }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
+        })
+        .map_err(|e| ForumServiceError::internal(e.to_string()))?;
 
         Ok(row_to_reply(&row))
     }
 
-    fn update_reply(&self, ctx: &ForumRequestContext, command: &UpdateReplyCommand) -> Result<ForumReply, ForumServiceError> {
+    fn update_reply(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &UpdateReplyCommand,
+    ) -> Result<ForumReply, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let row = run_db!(async {
             sqlx::query(
@@ -929,7 +1004,7 @@ impl ForumRepository for SqlxForumRepository {
                      version = version + 1,
                      updated_at = NOW()
                  WHERE id = $3 AND tenant_id = $4 AND deleted_at IS NULL
-                 RETURNING *"
+                 RETURNING *",
             )
             .bind(command.body.as_deref())
             .bind(command.body_format.as_deref())
@@ -937,14 +1012,21 @@ impl ForumRepository for SqlxForumRepository {
             .bind(tenant_id)
             .fetch_one(&self.pool)
             .await
-        }).map_err(|e| match e {
-            sqlx::Error::RowNotFound => ForumServiceError::not_found("reply", command.reply_id.to_string()),
+        })
+        .map_err(|e| match e {
+            sqlx::Error::RowNotFound => {
+                ForumServiceError::not_found("reply", command.reply_id.to_string())
+            }
             e => ForumServiceError::internal(e.to_string()),
         })?;
         Ok(row_to_reply(&row))
     }
 
-    fn delete_reply(&self, ctx: &ForumRequestContext, command: &DeleteReplyCommand) -> Result<CommandResult, ForumServiceError> {
+    fn delete_reply(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &DeleteReplyCommand,
+    ) -> Result<CommandResult, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let user_id = ctx.user_id_value();
         let row = run_db!(async {
@@ -952,62 +1034,89 @@ impl ForumRepository for SqlxForumRepository {
                 "UPDATE forum_topic_reply
                  SET deleted_at = NOW(), deleted_by = $1, status = 'deleted'
                  WHERE id = $2 AND tenant_id = $3 AND deleted_at IS NULL
-                 RETURNING id, uuid"
+                 RETURNING id, uuid",
             )
             .bind(user_id)
             .bind(command.reply_id)
             .bind(tenant_id)
             .fetch_one(&self.pool)
             .await
-        }).map_err(|e| match e {
-            sqlx::Error::RowNotFound => ForumServiceError::not_found("reply", command.reply_id.to_string()),
+        })
+        .map_err(|e| match e {
+            sqlx::Error::RowNotFound => {
+                ForumServiceError::not_found("reply", command.reply_id.to_string())
+            }
             e => ForumServiceError::internal(e.to_string()),
         })?;
-        Ok(CommandResult::success(row.get("id"), row.get::<String, _>("uuid")))
+        Ok(CommandResult::success(
+            row.get("id"),
+            row.get::<String, _>("uuid"),
+        ))
     }
 
-    fn accept_reply(&self, ctx: &ForumRequestContext, command: &AcceptReplyCommand) -> Result<ForumTopic, ForumServiceError> {
+    fn accept_reply(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &AcceptReplyCommand,
+    ) -> Result<ForumTopic, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let row = run_db!(async {
             sqlx::query(
                 "UPDATE forum_topic
                  SET accepted_reply_id = $1
                  WHERE id = $2 AND tenant_id = $3 AND topic_type = 'question'
-                 RETURNING *"
+                 RETURNING *",
             )
             .bind(command.reply_id)
             .bind(command.topic_id)
             .bind(tenant_id)
             .fetch_one(&self.pool)
             .await
-        }).map_err(|e| match e {
-            sqlx::Error::RowNotFound => ForumServiceError::not_found("topic", command.topic_id.to_string()),
+        })
+        .map_err(|e| match e {
+            sqlx::Error::RowNotFound => {
+                ForumServiceError::not_found("topic", command.topic_id.to_string())
+            }
             e => ForumServiceError::internal(e.to_string()),
         })?;
         Ok(row_to_topic(&row))
     }
 
-    fn clear_accepted_reply(&self, ctx: &ForumRequestContext, command: &ClearAcceptedReplyCommand) -> Result<CommandResult, ForumServiceError> {
+    fn clear_accepted_reply(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &ClearAcceptedReplyCommand,
+    ) -> Result<CommandResult, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let row = run_db!(async {
             sqlx::query(
                 "UPDATE forum_topic
                  SET accepted_reply_id = NULL
                  WHERE id = $1 AND tenant_id = $2
-                 RETURNING id, uuid"
+                 RETURNING id, uuid",
             )
             .bind(command.topic_id)
             .bind(tenant_id)
             .fetch_one(&self.pool)
             .await
-        }).map_err(|e| match e {
-            sqlx::Error::RowNotFound => ForumServiceError::not_found("topic", command.topic_id.to_string()),
+        })
+        .map_err(|e| match e {
+            sqlx::Error::RowNotFound => {
+                ForumServiceError::not_found("topic", command.topic_id.to_string())
+            }
             e => ForumServiceError::internal(e.to_string()),
         })?;
-        Ok(CommandResult::success(row.get("id"), row.get::<String, _>("uuid")))
+        Ok(CommandResult::success(
+            row.get("id"),
+            row.get::<String, _>("uuid"),
+        ))
     }
 
-    fn create_report(&self, ctx: &ForumRequestContext, command: &CreateReportCommand) -> Result<CommandResult, ForumServiceError> {
+    fn create_report(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &CreateReportCommand,
+    ) -> Result<CommandResult, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let org_id = ctx.organization_id_value();
         let user_id = ctx.user_id_value();
@@ -1023,7 +1132,7 @@ impl ForumRepository for SqlxForumRepository {
                 ) VALUES (
                     $1, $2, $3, $4, $5, $6, $7,
                     'open', 'active', 1, NOW(), NOW(), $8, $9, 'default'
-                ) RETURNING id, uuid"
+                ) RETURNING id, uuid",
             )
             .bind(id)
             .bind(&uuid)
@@ -1036,13 +1145,19 @@ impl ForumRepository for SqlxForumRepository {
             .bind(org_id)
             .fetch_one(&self.pool)
             .await
-        }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
-        Ok(CommandResult::success(row.get("id"), row.get::<String, _>("uuid")))
+        })
+        .map_err(|e| ForumServiceError::internal(e.to_string()))?;
+        Ok(CommandResult::success(
+            row.get("id"),
+            row.get::<String, _>("uuid"),
+        ))
     }
 
-
-
-    fn query_search(&self, ctx: &ForumRequestContext, command: &QuerySearchCommand) -> Result<SearchResult, ForumServiceError> {
+    fn query_search(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &QuerySearchCommand,
+    ) -> Result<SearchResult, ForumServiceError> {
         let offset = parse_cursor(&command.cursor);
         let limit = command.limit.max(1) as i64;
         let tenant_id = ctx.tenant_id_value();
@@ -1057,7 +1172,7 @@ impl ForumRepository for SqlxForumRepository {
                    AND ($2::bigint IS NULL OR board_id = $2)
                    AND (title ILIKE $3 OR body_text ILIKE $3 OR COALESCE(tag_text, '') ILIKE $3)
                  ORDER BY updated_at DESC, id DESC
-                 LIMIT $4 OFFSET $5"
+                 LIMIT $4 OFFSET $5",
             )
             .bind(tenant_id)
             .bind(command.board_id)
@@ -1066,15 +1181,28 @@ impl ForumRepository for SqlxForumRepository {
             .bind(offset)
             .fetch_all(&self.pool)
             .await
-        }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
+        })
+        .map_err(|e| ForumServiceError::internal(e.to_string()))?;
 
         let has_more = rows.len() as i64 > limit;
-        let items: Vec<ForumSearchDocument> = rows.iter().take(limit as usize).map(row_to_search_document).collect();
-        let next_cursor = if has_more { Some((offset + limit).to_string()) } else { None };
+        let items: Vec<ForumSearchDocument> = rows
+            .iter()
+            .take(limit as usize)
+            .map(row_to_search_document)
+            .collect();
+        let next_cursor = if has_more {
+            Some((offset + limit).to_string())
+        } else {
+            None
+        };
         Ok(CursorPage::new(items, next_cursor, has_more))
     }
 
-    fn list_moderation_queue(&self, ctx: &ForumRequestContext, command: &ListModerationQueueCommand) -> Result<ModerationQueueResult, ForumServiceError> {
+    fn list_moderation_queue(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &ListModerationQueueCommand,
+    ) -> Result<ModerationQueueResult, ForumServiceError> {
         let offset = parse_cursor(&command.cursor);
         let limit = command.limit.max(1) as i64;
         let tenant_id = ctx.tenant_id_value();
@@ -1094,7 +1222,7 @@ impl ForumRepository for SqlxForumRepository {
                        AND q.queue_status IN ('open', 'assigned', 'in_review')
                    )
                  ORDER BY c.updated_at DESC, c.id DESC
-                 LIMIT $4 OFFSET $5"
+                 LIMIT $4 OFFSET $5",
             )
             .bind(tenant_id)
             .bind(command.status_filter.as_deref())
@@ -1103,15 +1231,28 @@ impl ForumRepository for SqlxForumRepository {
             .bind(offset)
             .fetch_all(&self.pool)
             .await
-        }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
+        })
+        .map_err(|e| ForumServiceError::internal(e.to_string()))?;
 
         let has_more = rows.len() as i64 > limit;
-        let items: Vec<ForumModerationCase> = rows.iter().take(limit as usize).map(row_to_moderation_case).collect();
-        let next_cursor = if has_more { Some((offset + limit).to_string()) } else { None };
+        let items: Vec<ForumModerationCase> = rows
+            .iter()
+            .take(limit as usize)
+            .map(row_to_moderation_case)
+            .collect();
+        let next_cursor = if has_more {
+            Some((offset + limit).to_string())
+        } else {
+            None
+        };
         Ok(CursorPage::new(items, next_cursor, has_more))
     }
 
-    fn create_moderation_decision(&self, ctx: &ForumRequestContext, command: &CreateModerationDecisionCommand) -> Result<ModerationDecisionResult, ForumServiceError> {
+    fn create_moderation_decision(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &CreateModerationDecisionCommand,
+    ) -> Result<ModerationDecisionResult, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let org_id = ctx.organization_id_value();
         let user_id = ctx.user_id_value();
@@ -1121,20 +1262,24 @@ impl ForumRepository for SqlxForumRepository {
         let case_row = run_db!(async {
             sqlx::query(
                 "SELECT target_type, target_id, case_status FROM forum_moderation_case
-                 WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL"
+                 WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL",
             )
             .bind(command.case_id)
             .bind(tenant_id)
             .fetch_one(&self.pool)
             .await
-        }).map_err(|e| match e {
-            sqlx::Error::RowNotFound => ForumServiceError::not_found("moderation_case", command.case_id.to_string()),
+        })
+        .map_err(|e| match e {
+            sqlx::Error::RowNotFound => {
+                ForumServiceError::not_found("moderation_case", command.case_id.to_string())
+            }
             e => ForumServiceError::internal(e.to_string()),
         })?;
 
         let target_type: String = case_row.get("target_type");
         let target_id: i64 = case_row.get("target_id");
-        let before_state = serde_json::json!({ "case_status": case_row.get::<String, _>("case_status") });
+        let before_state =
+            serde_json::json!({ "case_status": case_row.get::<String, _>("case_status") });
         let new_case_status = match command.decision_action.as_str() {
             "escalate" => "escalated",
             "dismiss" => "dismissed",
@@ -1151,7 +1296,7 @@ impl ForumRepository for SqlxForumRepository {
                 ) VALUES (
                     $1, $2, $3, $4, $5, $6, $7, $8,
                     $9, $10, $11, 'active', 1, NOW(), NOW(), $12, $13, 'default'
-                ) RETURNING *"
+                ) RETURNING *",
             )
             .bind(id)
             .bind(&uuid)
@@ -1168,7 +1313,8 @@ impl ForumRepository for SqlxForumRepository {
             .bind(org_id)
             .fetch_one(&self.pool)
             .await
-        }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
+        })
+        .map_err(|e| ForumServiceError::internal(e.to_string()))?;
 
         run_db!(async {
             sqlx::query(
@@ -1198,7 +1344,11 @@ impl ForumRepository for SqlxForumRepository {
         Ok(row_to_moderation_decision(&row))
     }
 
-    fn rebuild_search_projection(&self, ctx: &ForumRequestContext, command: &RebuildSearchProjectionCommand) -> Result<CommandResult, ForumServiceError> {
+    fn rebuild_search_projection(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &RebuildSearchProjectionCommand,
+    ) -> Result<CommandResult, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let org_id = ctx.organization_id_value();
         let scope = command.scope.as_deref().unwrap_or("all");
@@ -1265,13 +1415,14 @@ impl ForumRepository for SqlxForumRepository {
                             r.tenant_id, r.organization_id, r.data_scope
                      FROM forum_topic_reply r
                      WHERE r.tenant_id = $1 AND r.deleted_at IS NULL
-                       AND ($2::bigint IS NULL OR r.board_id = $2)"
+                       AND ($2::bigint IS NULL OR r.board_id = $2)",
                 )
                 .bind(tenant_id)
                 .bind(command.board_id)
                 .fetch_all(&self.pool)
                 .await
-            }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
+            })
+            .map_err(|e| ForumServiceError::internal(e.to_string()))?;
 
             for r in &topics {
                 let reply_id: i64 = r.get("id");
@@ -1314,7 +1465,11 @@ impl ForumRepository for SqlxForumRepository {
         Ok(CommandResult::no_id())
     }
 
-    fn rebuild_stats(&self, ctx: &ForumRequestContext, command: &RebuildStatsCommand) -> Result<CommandResult, ForumServiceError> {
+    fn rebuild_stats(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &RebuildStatsCommand,
+    ) -> Result<CommandResult, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let scope = command.scope.as_deref().unwrap_or("all");
 
@@ -1322,12 +1477,13 @@ impl ForumRepository for SqlxForumRepository {
             let board_ids = run_db!(async {
                 sqlx::query_scalar::<_, i64>(
                     "SELECT id FROM forum_node
-                     WHERE tenant_id = $1 AND node_type = 'board' AND deleted_at IS NULL"
+                     WHERE tenant_id = $1 AND node_type = 'board' AND deleted_at IS NULL",
                 )
                 .bind(tenant_id)
                 .fetch_all(&self.pool)
                 .await
-            }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
+            })
+            .map_err(|e| ForumServiceError::internal(e.to_string()))?;
 
             for board_id in board_ids {
                 self.update_board_stats(ctx, board_id)?;
@@ -1338,12 +1494,13 @@ impl ForumRepository for SqlxForumRepository {
             let topic_ids = run_db!(async {
                 sqlx::query_scalar::<_, i64>(
                     "SELECT id FROM forum_topic
-                     WHERE tenant_id = $1 AND deleted_at IS NULL"
+                     WHERE tenant_id = $1 AND deleted_at IS NULL",
                 )
                 .bind(tenant_id)
                 .fetch_all(&self.pool)
                 .await
-            }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
+            })
+            .map_err(|e| ForumServiceError::internal(e.to_string()))?;
 
             for topic_id in topic_ids {
                 self.update_topic_stats(ctx, topic_id)?;
@@ -1368,18 +1525,23 @@ impl ForumRepository for SqlxForumRepository {
                    AND status = 'pending'
                    AND (next_attempt_at IS NULL OR next_attempt_at <= NOW())
                  ORDER BY id ASC
-                 LIMIT $2"
+                 LIMIT $2",
             )
             .bind(tenant_id)
             .bind(limit)
             .fetch_all(&self.pool)
             .await
-        }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
+        })
+        .map_err(|e| ForumServiceError::internal(e.to_string()))?;
 
         Ok(rows.iter().map(row_to_outbox_event).collect())
     }
 
-    fn mark_outbox_published(&self, ctx: &ForumRequestContext, event_id: i64) -> Result<(), ForumServiceError> {
+    fn mark_outbox_published(
+        &self,
+        ctx: &ForumRequestContext,
+        event_id: i64,
+    ) -> Result<(), ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         run_db!(async {
             sqlx::query(
@@ -1389,17 +1551,22 @@ impl ForumRepository for SqlxForumRepository {
                      updated_at = NOW(),
                      version = version + 1,
                      publish_attempts = publish_attempts + 1
-                 WHERE id = $1 AND tenant_id = $2 AND status = 'pending'"
+                 WHERE id = $1 AND tenant_id = $2 AND status = 'pending'",
             )
             .bind(event_id)
             .bind(tenant_id)
             .execute(&self.pool)
             .await
-        }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
+        })
+        .map_err(|e| ForumServiceError::internal(e.to_string()))?;
         Ok(())
     }
 
-    fn list_topic_revisions(&self, ctx: &ForumRequestContext, command: &ListTopicRevisionsCommand) -> Result<TopicRevisionPageResult, ForumServiceError> {
+    fn list_topic_revisions(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &ListTopicRevisionsCommand,
+    ) -> Result<TopicRevisionPageResult, ForumServiceError> {
         let offset = parse_cursor(&command.cursor);
         let limit = command.limit.max(1) as i64;
         let tenant_id = ctx.tenant_id_value();
@@ -1409,7 +1576,7 @@ impl ForumRepository for SqlxForumRepository {
                 "SELECT * FROM forum_topic_revision
                  WHERE topic_id = $1 AND tenant_id = $2 AND deleted_at IS NULL
                  ORDER BY revision_no DESC
-                 LIMIT $3 OFFSET $4"
+                 LIMIT $3 OFFSET $4",
             )
             .bind(command.topic_id)
             .bind(tenant_id)
@@ -1417,15 +1584,28 @@ impl ForumRepository for SqlxForumRepository {
             .bind(offset)
             .fetch_all(&self.pool)
             .await
-        }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
+        })
+        .map_err(|e| ForumServiceError::internal(e.to_string()))?;
 
         let has_more = rows.len() as i64 > limit;
-        let items: Vec<ForumTopicRevision> = rows.iter().take(limit as usize).map(row_to_topic_revision).collect();
-        let next_cursor = if has_more { Some((offset + limit).to_string()) } else { None };
+        let items: Vec<ForumTopicRevision> = rows
+            .iter()
+            .take(limit as usize)
+            .map(row_to_topic_revision)
+            .collect();
+        let next_cursor = if has_more {
+            Some((offset + limit).to_string())
+        } else {
+            None
+        };
         Ok(CursorPage::new(items, next_cursor, has_more))
     }
 
-    fn list_reply_revisions(&self, ctx: &ForumRequestContext, command: &ListReplyRevisionsCommand) -> Result<ReplyRevisionPageResult, ForumServiceError> {
+    fn list_reply_revisions(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &ListReplyRevisionsCommand,
+    ) -> Result<ReplyRevisionPageResult, ForumServiceError> {
         let offset = parse_cursor(&command.cursor);
         let limit = command.limit.max(1) as i64;
         let tenant_id = ctx.tenant_id_value();
@@ -1435,7 +1615,7 @@ impl ForumRepository for SqlxForumRepository {
                 "SELECT * FROM forum_reply_revision
                  WHERE reply_id = $1 AND tenant_id = $2 AND deleted_at IS NULL
                  ORDER BY revision_no DESC
-                 LIMIT $3 OFFSET $4"
+                 LIMIT $3 OFFSET $4",
             )
             .bind(command.reply_id)
             .bind(tenant_id)
@@ -1443,15 +1623,28 @@ impl ForumRepository for SqlxForumRepository {
             .bind(offset)
             .fetch_all(&self.pool)
             .await
-        }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
+        })
+        .map_err(|e| ForumServiceError::internal(e.to_string()))?;
 
         let has_more = rows.len() as i64 > limit;
-        let items: Vec<ForumReplyRevision> = rows.iter().take(limit as usize).map(row_to_reply_revision).collect();
-        let next_cursor = if has_more { Some((offset + limit).to_string()) } else { None };
+        let items: Vec<ForumReplyRevision> = rows
+            .iter()
+            .take(limit as usize)
+            .map(row_to_reply_revision)
+            .collect();
+        let next_cursor = if has_more {
+            Some((offset + limit).to_string())
+        } else {
+            None
+        };
         Ok(CursorPage::new(items, next_cursor, has_more))
     }
 
-    fn create_poll_vote(&self, ctx: &ForumRequestContext, command: &CreatePollVoteCommand) -> Result<CommandResult, ForumServiceError> {
+    fn create_poll_vote(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &CreatePollVoteCommand,
+    ) -> Result<CommandResult, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let org_id = ctx.organization_id_value();
         let user_id = ctx.user_id_value();
@@ -1487,32 +1680,38 @@ impl ForumRepository for SqlxForumRepository {
             run_db!(async {
                 sqlx::query(
                     "UPDATE forum_poll_option SET vote_count = vote_count + 1, updated_at = NOW()
-                     WHERE id = $1 AND poll_id = $2 AND tenant_id = $3"
+                     WHERE id = $1 AND poll_id = $2 AND tenant_id = $3",
                 )
                 .bind(option_id)
                 .bind(command.poll_id)
                 .bind(tenant_id)
                 .execute(&self.pool)
                 .await
-            }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
+            })
+            .map_err(|e| ForumServiceError::internal(e.to_string()))?;
         }
 
         run_db!(async {
             sqlx::query(
                 "UPDATE forum_poll SET total_vote_count = total_vote_count + $1, updated_at = NOW()
-                 WHERE id = $2 AND tenant_id = $3"
+                 WHERE id = $2 AND tenant_id = $3",
             )
             .bind(command.option_ids.len() as i64)
             .bind(command.poll_id)
             .bind(tenant_id)
             .execute(&self.pool)
             .await
-        }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
+        })
+        .map_err(|e| ForumServiceError::internal(e.to_string()))?;
 
         Ok(CommandResult::success(last_id, last_uuid))
     }
 
-    fn create_reaction(&self, ctx: &ForumRequestContext, command: &CreateReactionCommand) -> Result<CommandResult, ForumServiceError> {
+    fn create_reaction(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &CreateReactionCommand,
+    ) -> Result<CommandResult, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let org_id = ctx.organization_id_value();
         let user_id = ctx.user_id_value();
@@ -1527,7 +1726,7 @@ impl ForumRepository for SqlxForumRepository {
                 ) VALUES (
                     $1, $2, $3, $4, $5, $6,
                     'active', 1, NOW(), NOW(), $7, $8, 'default'
-                ) RETURNING id, uuid"
+                ) RETURNING id, uuid",
             )
             .bind(id)
             .bind(&uuid)
@@ -1539,11 +1738,19 @@ impl ForumRepository for SqlxForumRepository {
             .bind(org_id)
             .fetch_one(&self.pool)
             .await
-        }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
-        Ok(CommandResult::success(row.get("id"), row.get::<String, _>("uuid")))
+        })
+        .map_err(|e| ForumServiceError::internal(e.to_string()))?;
+        Ok(CommandResult::success(
+            row.get("id"),
+            row.get::<String, _>("uuid"),
+        ))
     }
 
-    fn create_vote(&self, ctx: &ForumRequestContext, command: &CreateVoteCommand) -> Result<CommandResult, ForumServiceError> {
+    fn create_vote(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &CreateVoteCommand,
+    ) -> Result<CommandResult, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let org_id = ctx.organization_id_value();
         let user_id = ctx.user_id_value();
@@ -1558,7 +1765,7 @@ impl ForumRepository for SqlxForumRepository {
                 ) VALUES (
                     $1, $2, $3, $4, $5, $6, $7,
                     'active', 1, NOW(), NOW(), $8, $9, 'default'
-                ) RETURNING id, uuid"
+                ) RETURNING id, uuid",
             )
             .bind(id)
             .bind(&uuid)
@@ -1571,11 +1778,19 @@ impl ForumRepository for SqlxForumRepository {
             .bind(org_id)
             .fetch_one(&self.pool)
             .await
-        }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
-        Ok(CommandResult::success(row.get("id"), row.get::<String, _>("uuid")))
+        })
+        .map_err(|e| ForumServiceError::internal(e.to_string()))?;
+        Ok(CommandResult::success(
+            row.get("id"),
+            row.get::<String, _>("uuid"),
+        ))
     }
 
-    fn update_bookmark(&self, ctx: &ForumRequestContext, command: &UpdateBookmarkCommand) -> Result<CommandResult, ForumServiceError> {
+    fn update_bookmark(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &UpdateBookmarkCommand,
+    ) -> Result<CommandResult, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let org_id = ctx.organization_id_value();
         let user_id = ctx.user_id_value();
@@ -1593,7 +1808,7 @@ impl ForumRepository for SqlxForumRepository {
                 )
                 ON CONFLICT (tenant_id, target_type, target_id, user_id)
                 DO UPDATE SET note = EXCLUDED.note, updated_at = NOW()
-                RETURNING id, uuid"
+                RETURNING id, uuid",
             )
             .bind(id)
             .bind(&uuid)
@@ -1605,11 +1820,19 @@ impl ForumRepository for SqlxForumRepository {
             .bind(org_id)
             .fetch_one(&self.pool)
             .await
-        }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
-        Ok(CommandResult::success(row.get("id"), row.get::<String, _>("uuid")))
+        })
+        .map_err(|e| ForumServiceError::internal(e.to_string()))?;
+        Ok(CommandResult::success(
+            row.get("id"),
+            row.get::<String, _>("uuid"),
+        ))
     }
 
-    fn update_read_state(&self, ctx: &ForumRequestContext, command: &UpdateReadStateCommand) -> Result<CommandResult, ForumServiceError> {
+    fn update_read_state(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &UpdateReadStateCommand,
+    ) -> Result<CommandResult, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let org_id = ctx.organization_id_value();
         let user_id = ctx.user_id_value();
@@ -1639,10 +1862,17 @@ impl ForumRepository for SqlxForumRepository {
             .fetch_one(&self.pool)
             .await
         }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
-        Ok(CommandResult::success(row.get("id"), row.get::<String, _>("uuid")))
+        Ok(CommandResult::success(
+            row.get("id"),
+            row.get::<String, _>("uuid"),
+        ))
     }
 
-    fn pin_topic(&self, ctx: &ForumRequestContext, command: &PinTopicCommand) -> Result<CommandResult, ForumServiceError> {
+    fn pin_topic(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &PinTopicCommand,
+    ) -> Result<CommandResult, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let row = run_db!(async {
             sqlx::query(
@@ -1650,40 +1880,60 @@ impl ForumRepository for SqlxForumRepository {
                  SET pinned_at = CASE WHEN pinned_at IS NULL THEN NOW() ELSE NULL END,
                      updated_at = NOW()
                  WHERE id = $1 AND tenant_id = $2
-                 RETURNING id, uuid"
+                 RETURNING id, uuid",
             )
             .bind(command.topic_id)
             .bind(tenant_id)
             .fetch_one(&self.pool)
             .await
-        }).map_err(|e| match e {
-            sqlx::Error::RowNotFound => ForumServiceError::not_found("topic", command.topic_id.to_string()),
+        })
+        .map_err(|e| match e {
+            sqlx::Error::RowNotFound => {
+                ForumServiceError::not_found("topic", command.topic_id.to_string())
+            }
             e => ForumServiceError::internal(e.to_string()),
         })?;
-        Ok(CommandResult::success(row.get("id"), row.get::<String, _>("uuid")))
+        Ok(CommandResult::success(
+            row.get("id"),
+            row.get::<String, _>("uuid"),
+        ))
     }
 
-    fn unpin_topic(&self, ctx: &ForumRequestContext, command: &PinTopicCommand) -> Result<CommandResult, ForumServiceError> {
+    fn unpin_topic(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &PinTopicCommand,
+    ) -> Result<CommandResult, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let row = run_db!(async {
             sqlx::query(
                 "UPDATE forum_topic
                  SET pinned_at = NULL, updated_at = NOW()
                  WHERE id = $1 AND tenant_id = $2 AND pinned_at IS NOT NULL
-                 RETURNING id, uuid"
+                 RETURNING id, uuid",
             )
             .bind(command.topic_id)
             .bind(tenant_id)
             .fetch_one(&self.pool)
             .await
-        }).map_err(|e| match e {
-            sqlx::Error::RowNotFound => ForumServiceError::not_found("topic", command.topic_id.to_string()),
+        })
+        .map_err(|e| match e {
+            sqlx::Error::RowNotFound => {
+                ForumServiceError::not_found("topic", command.topic_id.to_string())
+            }
             e => ForumServiceError::internal(e.to_string()),
         })?;
-        Ok(CommandResult::success(row.get("id"), row.get::<String, _>("uuid")))
+        Ok(CommandResult::success(
+            row.get("id"),
+            row.get::<String, _>("uuid"),
+        ))
     }
 
-    fn feature_topic(&self, ctx: &ForumRequestContext, command: &FeatureTopicCommand) -> Result<CommandResult, ForumServiceError> {
+    fn feature_topic(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &FeatureTopicCommand,
+    ) -> Result<CommandResult, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let row = run_db!(async {
             sqlx::query(
@@ -1691,40 +1941,60 @@ impl ForumRepository for SqlxForumRepository {
                  SET featured_at = CASE WHEN featured_at IS NULL THEN NOW() ELSE NULL END,
                      updated_at = NOW()
                  WHERE id = $1 AND tenant_id = $2
-                 RETURNING id, uuid"
+                 RETURNING id, uuid",
             )
             .bind(command.topic_id)
             .bind(tenant_id)
             .fetch_one(&self.pool)
             .await
-        }).map_err(|e| match e {
-            sqlx::Error::RowNotFound => ForumServiceError::not_found("topic", command.topic_id.to_string()),
+        })
+        .map_err(|e| match e {
+            sqlx::Error::RowNotFound => {
+                ForumServiceError::not_found("topic", command.topic_id.to_string())
+            }
             e => ForumServiceError::internal(e.to_string()),
         })?;
-        Ok(CommandResult::success(row.get("id"), row.get::<String, _>("uuid")))
+        Ok(CommandResult::success(
+            row.get("id"),
+            row.get::<String, _>("uuid"),
+        ))
     }
 
-    fn unfeature_topic(&self, ctx: &ForumRequestContext, command: &FeatureTopicCommand) -> Result<CommandResult, ForumServiceError> {
+    fn unfeature_topic(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &FeatureTopicCommand,
+    ) -> Result<CommandResult, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let row = run_db!(async {
             sqlx::query(
                 "UPDATE forum_topic
                  SET featured_at = NULL, updated_at = NOW()
                  WHERE id = $1 AND tenant_id = $2 AND featured_at IS NOT NULL
-                 RETURNING id, uuid"
+                 RETURNING id, uuid",
             )
             .bind(command.topic_id)
             .bind(tenant_id)
             .fetch_one(&self.pool)
             .await
-        }).map_err(|e| match e {
-            sqlx::Error::RowNotFound => ForumServiceError::not_found("topic", command.topic_id.to_string()),
+        })
+        .map_err(|e| match e {
+            sqlx::Error::RowNotFound => {
+                ForumServiceError::not_found("topic", command.topic_id.to_string())
+            }
             e => ForumServiceError::internal(e.to_string()),
         })?;
-        Ok(CommandResult::success(row.get("id"), row.get::<String, _>("uuid")))
+        Ok(CommandResult::success(
+            row.get("id"),
+            row.get::<String, _>("uuid"),
+        ))
     }
 
-    fn lock_topic(&self, ctx: &ForumRequestContext, command: &LockTopicCommand) -> Result<CommandResult, ForumServiceError> {
+    fn lock_topic(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &LockTopicCommand,
+    ) -> Result<CommandResult, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let user_id = ctx.user_id_value();
         let row = run_db!(async {
@@ -1734,62 +2004,92 @@ impl ForumRepository for SqlxForumRepository {
                      locked_by = CASE WHEN locked_at IS NULL THEN $2 ELSE NULL END,
                      updated_at = NOW()
                  WHERE id = $1 AND tenant_id = $3
-                 RETURNING id, uuid"
+                 RETURNING id, uuid",
             )
             .bind(command.topic_id)
             .bind(user_id)
             .bind(tenant_id)
             .fetch_one(&self.pool)
             .await
-        }).map_err(|e| match e {
-            sqlx::Error::RowNotFound => ForumServiceError::not_found("topic", command.topic_id.to_string()),
+        })
+        .map_err(|e| match e {
+            sqlx::Error::RowNotFound => {
+                ForumServiceError::not_found("topic", command.topic_id.to_string())
+            }
             e => ForumServiceError::internal(e.to_string()),
         })?;
-        Ok(CommandResult::success(row.get("id"), row.get::<String, _>("uuid")))
+        Ok(CommandResult::success(
+            row.get("id"),
+            row.get::<String, _>("uuid"),
+        ))
     }
 
-    fn unlock_topic(&self, ctx: &ForumRequestContext, command: &LockTopicCommand) -> Result<CommandResult, ForumServiceError> {
+    fn unlock_topic(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &LockTopicCommand,
+    ) -> Result<CommandResult, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let row = run_db!(async {
             sqlx::query(
                 "UPDATE forum_topic
                  SET locked_at = NULL, locked_by = NULL, updated_at = NOW()
                  WHERE id = $1 AND tenant_id = $2 AND locked_at IS NOT NULL
-                 RETURNING id, uuid"
+                 RETURNING id, uuid",
             )
             .bind(command.topic_id)
             .bind(tenant_id)
             .fetch_one(&self.pool)
             .await
-        }).map_err(|e| match e {
-            sqlx::Error::RowNotFound => ForumServiceError::not_found("topic", command.topic_id.to_string()),
+        })
+        .map_err(|e| match e {
+            sqlx::Error::RowNotFound => {
+                ForumServiceError::not_found("topic", command.topic_id.to_string())
+            }
             e => ForumServiceError::internal(e.to_string()),
         })?;
-        Ok(CommandResult::success(row.get("id"), row.get::<String, _>("uuid")))
+        Ok(CommandResult::success(
+            row.get("id"),
+            row.get::<String, _>("uuid"),
+        ))
     }
 
-    fn move_topic(&self, ctx: &ForumRequestContext, command: &MoveTopicCommand) -> Result<CommandResult, ForumServiceError> {
+    fn move_topic(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &MoveTopicCommand,
+    ) -> Result<CommandResult, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let row = run_db!(async {
             sqlx::query(
                 "UPDATE forum_topic
                  SET board_id = $1, updated_at = NOW()
                  WHERE id = $2 AND tenant_id = $3
-                 RETURNING id, uuid"
+                 RETURNING id, uuid",
             )
             .bind(command.target_board_id)
             .bind(command.topic_id)
             .bind(tenant_id)
             .fetch_one(&self.pool)
             .await
-        }).map_err(|e| match e {
-            sqlx::Error::RowNotFound => ForumServiceError::not_found("topic", command.topic_id.to_string()),
+        })
+        .map_err(|e| match e {
+            sqlx::Error::RowNotFound => {
+                ForumServiceError::not_found("topic", command.topic_id.to_string())
+            }
             e => ForumServiceError::internal(e.to_string()),
         })?;
-        Ok(CommandResult::success(row.get("id"), row.get::<String, _>("uuid")))
+        Ok(CommandResult::success(
+            row.get("id"),
+            row.get::<String, _>("uuid"),
+        ))
     }
 
-    fn create_node(&self, ctx: &ForumRequestContext, command: &CreateNodeCommand) -> Result<ForumNode, ForumServiceError> {
+    fn create_node(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &CreateNodeCommand,
+    ) -> Result<ForumNode, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let org_id = ctx.organization_id_value();
         let uuid = Uuid::new_v4().to_string();
@@ -1805,7 +2105,10 @@ impl ForumRepository for SqlxForumRepository {
                 sqlx::Error::RowNotFound => ForumServiceError::not_found("node", parent_id.to_string()),
                 e => ForumServiceError::internal(e.to_string()),
             })?;
-            (prow.get::<String, _>("path"), prow.get::<i32, _>("level_no"))
+            (
+                prow.get::<String, _>("path"),
+                prow.get::<i32, _>("level_no"),
+            )
         } else {
             (String::new(), -1i32)
         };
@@ -1821,7 +2124,7 @@ impl ForumRepository for SqlxForumRepository {
                     $1, $2, $3, $4, $5, $6, $7, $8,
                     '', $9, $10, $11, 'active', 1,
                     NOW(), NOW(), $12, $13, 'default'
-                ) RETURNING *"
+                ) RETURNING *",
             )
             .bind(id)
             .bind(&uuid)
@@ -1838,7 +2141,8 @@ impl ForumRepository for SqlxForumRepository {
             .bind(org_id)
             .fetch_one(&self.pool)
             .await
-        }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
+        })
+        .map_err(|e| ForumServiceError::internal(e.to_string()))?;
 
         let node_id: i64 = row.get("id");
         let new_path = if parent_path.is_empty() {
@@ -1848,18 +2152,25 @@ impl ForumRepository for SqlxForumRepository {
         };
 
         let row = run_db!(async {
-            sqlx::query("UPDATE forum_node SET path = $1 WHERE id = $2 AND tenant_id = $3 RETURNING *")
-                .bind(&new_path)
-                .bind(node_id)
-                .bind(tenant_id)
-                .fetch_one(&self.pool)
-                .await
-        }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
+            sqlx::query(
+                "UPDATE forum_node SET path = $1 WHERE id = $2 AND tenant_id = $3 RETURNING *",
+            )
+            .bind(&new_path)
+            .bind(node_id)
+            .bind(tenant_id)
+            .fetch_one(&self.pool)
+            .await
+        })
+        .map_err(|e| ForumServiceError::internal(e.to_string()))?;
 
         Ok(row_to_node(&row))
     }
 
-    fn update_node(&self, ctx: &ForumRequestContext, command: &UpdateNodeCommand) -> Result<ForumNode, ForumServiceError> {
+    fn update_node(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &UpdateNodeCommand,
+    ) -> Result<ForumNode, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
 
         if let Some(new_parent_id) = command.parent_id {
@@ -1876,7 +2187,10 @@ impl ForumRepository for SqlxForumRepository {
                     sqlx::Error::RowNotFound => ForumServiceError::not_found("node", new_parent_id.to_string()),
                     e => ForumServiceError::internal(e.to_string()),
                 })?;
-                (prow.get::<String, _>("path"), prow.get::<i32, _>("level_no"))
+                (
+                    prow.get::<String, _>("path"),
+                    prow.get::<i32, _>("level_no"),
+                )
             };
 
             let new_path = if parent_path.is_empty() {
@@ -1898,7 +2212,7 @@ impl ForumRepository for SqlxForumRepository {
                          version = version + 1,
                          updated_at = NOW()
                      WHERE id = $7 AND tenant_id = $8 AND deleted_at IS NULL
-                     RETURNING *"
+                     RETURNING *",
                 )
                 .bind(command.name.as_deref())
                 .bind(command.description.as_deref())
@@ -1910,8 +2224,11 @@ impl ForumRepository for SqlxForumRepository {
                 .bind(tenant_id)
                 .fetch_one(&self.pool)
                 .await
-            }).map_err(|e| match e {
-                sqlx::Error::RowNotFound => ForumServiceError::not_found("node", command.node_id.to_string()),
+            })
+            .map_err(|e| match e {
+                sqlx::Error::RowNotFound => {
+                    ForumServiceError::not_found("node", command.node_id.to_string())
+                }
                 e => ForumServiceError::internal(e.to_string()),
             })?;
             return Ok(row_to_node(&row));
@@ -1926,7 +2243,7 @@ impl ForumRepository for SqlxForumRepository {
                      version = version + 1,
                      updated_at = NOW()
                  WHERE id = $4 AND tenant_id = $5 AND deleted_at IS NULL
-                 RETURNING *"
+                 RETURNING *",
             )
             .bind(command.name.as_deref())
             .bind(command.description.as_deref())
@@ -1935,14 +2252,21 @@ impl ForumRepository for SqlxForumRepository {
             .bind(tenant_id)
             .fetch_one(&self.pool)
             .await
-        }).map_err(|e| match e {
-            sqlx::Error::RowNotFound => ForumServiceError::not_found("node", command.node_id.to_string()),
+        })
+        .map_err(|e| match e {
+            sqlx::Error::RowNotFound => {
+                ForumServiceError::not_found("node", command.node_id.to_string())
+            }
             e => ForumServiceError::internal(e.to_string()),
         })?;
         Ok(row_to_node(&row))
     }
 
-    fn delete_node(&self, ctx: &ForumRequestContext, command: &DeleteNodeCommand) -> Result<CommandResult, ForumServiceError> {
+    fn delete_node(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &DeleteNodeCommand,
+    ) -> Result<CommandResult, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let user_id = ctx.user_id_value();
         let row = run_db!(async {
@@ -1950,21 +2274,31 @@ impl ForumRepository for SqlxForumRepository {
                 "UPDATE forum_node
                  SET status = 'archived', deleted_at = NOW(), deleted_by = $1, updated_at = NOW()
                  WHERE id = $2 AND tenant_id = $3 AND deleted_at IS NULL
-                 RETURNING id, uuid"
+                 RETURNING id, uuid",
             )
             .bind(user_id)
             .bind(command.node_id)
             .bind(tenant_id)
             .fetch_one(&self.pool)
             .await
-        }).map_err(|e| match e {
-            sqlx::Error::RowNotFound => ForumServiceError::not_found("node", command.node_id.to_string()),
+        })
+        .map_err(|e| match e {
+            sqlx::Error::RowNotFound => {
+                ForumServiceError::not_found("node", command.node_id.to_string())
+            }
             e => ForumServiceError::internal(e.to_string()),
         })?;
-        Ok(CommandResult::success(row.get("id"), row.get::<String, _>("uuid")))
+        Ok(CommandResult::success(
+            row.get("id"),
+            row.get::<String, _>("uuid"),
+        ))
     }
 
-    fn list_moderation_cases(&self, ctx: &ForumRequestContext, command: &ListModerationCasesCommand) -> Result<ModerationCasePageResult, ForumServiceError> {
+    fn list_moderation_cases(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &ListModerationCasesCommand,
+    ) -> Result<ModerationCasePageResult, ForumServiceError> {
         let offset = parse_cursor(&command.cursor);
         let limit = command.limit.max(1) as i64;
         let tenant_id = ctx.tenant_id_value();
@@ -1975,7 +2309,7 @@ impl ForumRepository for SqlxForumRepository {
                  WHERE tenant_id = $1 AND deleted_at IS NULL
                    AND ($2::text IS NULL OR case_status = $2)
                  ORDER BY updated_at DESC, id DESC
-                 LIMIT $3 OFFSET $4"
+                 LIMIT $3 OFFSET $4",
             )
             .bind(tenant_id)
             .bind(command.status_filter.as_deref())
@@ -1983,15 +2317,28 @@ impl ForumRepository for SqlxForumRepository {
             .bind(offset)
             .fetch_all(&self.pool)
             .await
-        }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
+        })
+        .map_err(|e| ForumServiceError::internal(e.to_string()))?;
 
         let has_more = rows.len() as i64 > limit;
-        let items: Vec<ForumModerationCase> = rows.iter().take(limit as usize).map(row_to_moderation_case).collect();
-        let next_cursor = if has_more { Some((offset + limit).to_string()) } else { None };
+        let items: Vec<ForumModerationCase> = rows
+            .iter()
+            .take(limit as usize)
+            .map(row_to_moderation_case)
+            .collect();
+        let next_cursor = if has_more {
+            Some((offset + limit).to_string())
+        } else {
+            None
+        };
         Ok(CursorPage::new(items, next_cursor, has_more))
     }
 
-    fn create_moderation_case(&self, ctx: &ForumRequestContext, command: &CreateModerationCaseCommand) -> Result<ForumModerationCase, ForumServiceError> {
+    fn create_moderation_case(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &CreateModerationCaseCommand,
+    ) -> Result<ForumModerationCase, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let org_id = ctx.organization_id_value();
         let user_id = ctx.user_id_value();
@@ -2008,7 +2355,7 @@ impl ForumRepository for SqlxForumRepository {
                 ) VALUES (
                     $1, $2, $3, $4, $5, 'open', $6,
                     $7, $8, 'active', 1, NOW(), NOW(), $9, $10, 'default'
-                ) RETURNING *"
+                ) RETURNING *",
             )
             .bind(id)
             .bind(&uuid)
@@ -2022,11 +2369,16 @@ impl ForumRepository for SqlxForumRepository {
             .bind(org_id)
             .fetch_one(&self.pool)
             .await
-        }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
+        })
+        .map_err(|e| ForumServiceError::internal(e.to_string()))?;
         Ok(row_to_moderation_case(&row))
     }
 
-    fn retrieve_moderation_case(&self, ctx: &ForumRequestContext, command: &RetrieveModerationCaseCommand) -> Result<ForumModerationCase, ForumServiceError> {
+    fn retrieve_moderation_case(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &RetrieveModerationCaseCommand,
+    ) -> Result<ForumModerationCase, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let row = run_db!(async {
             sqlx::query(
@@ -2043,7 +2395,11 @@ impl ForumRepository for SqlxForumRepository {
         Ok(row_to_moderation_case(&row))
     }
 
-    fn list_sanctions(&self, ctx: &ForumRequestContext, command: &ListSanctionsCommand) -> Result<SanctionPageResult, ForumServiceError> {
+    fn list_sanctions(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &ListSanctionsCommand,
+    ) -> Result<SanctionPageResult, ForumServiceError> {
         let offset = parse_cursor(&command.cursor);
         let limit = command.limit.max(1) as i64;
         let tenant_id = ctx.tenant_id_value();
@@ -2054,7 +2410,7 @@ impl ForumRepository for SqlxForumRepository {
                  WHERE tenant_id = $1 AND deleted_at IS NULL
                    AND ($2::bigint IS NULL OR user_id = $2)
                  ORDER BY created_at DESC, id DESC
-                 LIMIT $3 OFFSET $4"
+                 LIMIT $3 OFFSET $4",
             )
             .bind(tenant_id)
             .bind(command.user_id)
@@ -2062,15 +2418,28 @@ impl ForumRepository for SqlxForumRepository {
             .bind(offset)
             .fetch_all(&self.pool)
             .await
-        }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
+        })
+        .map_err(|e| ForumServiceError::internal(e.to_string()))?;
 
         let has_more = rows.len() as i64 > limit;
-        let items: Vec<ForumSanction> = rows.iter().take(limit as usize).map(row_to_sanction).collect();
-        let next_cursor = if has_more { Some((offset + limit).to_string()) } else { None };
+        let items: Vec<ForumSanction> = rows
+            .iter()
+            .take(limit as usize)
+            .map(row_to_sanction)
+            .collect();
+        let next_cursor = if has_more {
+            Some((offset + limit).to_string())
+        } else {
+            None
+        };
         Ok(CursorPage::new(items, next_cursor, has_more))
     }
 
-    fn create_sanction(&self, ctx: &ForumRequestContext, command: &CreateSanctionCommand) -> Result<ForumSanction, ForumServiceError> {
+    fn create_sanction(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &CreateSanctionCommand,
+    ) -> Result<ForumSanction, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let org_id = ctx.organization_id_value();
         let uuid = Uuid::new_v4().to_string();
@@ -2085,7 +2454,7 @@ impl ForumRepository for SqlxForumRepository {
                 ) VALUES (
                     $1, $2, $3, $4, $5, $6, $7,
                     $8::timestamptz, $9::timestamptz, 'active', 1, NOW(), NOW(), $10, $11, 'default'
-                ) RETURNING *"
+                ) RETURNING *",
             )
             .bind(id)
             .bind(&uuid)
@@ -2100,11 +2469,16 @@ impl ForumRepository for SqlxForumRepository {
             .bind(org_id)
             .fetch_one(&self.pool)
             .await
-        }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
+        })
+        .map_err(|e| ForumServiceError::internal(e.to_string()))?;
         Ok(row_to_sanction(&row))
     }
 
-    fn update_sanction(&self, ctx: &ForumRequestContext, command: &UpdateSanctionCommand) -> Result<ForumSanction, ForumServiceError> {
+    fn update_sanction(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &UpdateSanctionCommand,
+    ) -> Result<ForumSanction, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let row = run_db!(async {
             sqlx::query(
@@ -2113,21 +2487,28 @@ impl ForumRepository for SqlxForumRepository {
                      version = version + 1,
                      updated_at = NOW()
                  WHERE id = $2 AND tenant_id = $3 AND deleted_at IS NULL
-                 RETURNING *"
+                 RETURNING *",
             )
             .bind(command.expires_at.as_deref())
             .bind(command.sanction_id)
             .bind(tenant_id)
             .fetch_one(&self.pool)
             .await
-        }).map_err(|e| match e {
-            sqlx::Error::RowNotFound => ForumServiceError::not_found("sanction", command.sanction_id.to_string()),
+        })
+        .map_err(|e| match e {
+            sqlx::Error::RowNotFound => {
+                ForumServiceError::not_found("sanction", command.sanction_id.to_string())
+            }
             e => ForumServiceError::internal(e.to_string()),
         })?;
         Ok(row_to_sanction(&row))
     }
 
-    fn list_reputation_rules(&self, ctx: &ForumRequestContext, command: &ListReputationRulesCommand) -> Result<ReputationRulePageResult, ForumServiceError> {
+    fn list_reputation_rules(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &ListReputationRulesCommand,
+    ) -> Result<ReputationRulePageResult, ForumServiceError> {
         let offset = parse_cursor(&command.cursor);
         let limit = command.limit.max(1) as i64;
         let tenant_id = ctx.tenant_id_value();
@@ -2137,22 +2518,35 @@ impl ForumRepository for SqlxForumRepository {
                 "SELECT * FROM forum_reputation_rule
                  WHERE tenant_id = $1 AND deleted_at IS NULL AND status = 'active'
                  ORDER BY created_at DESC, id DESC
-                 LIMIT $2 OFFSET $3"
+                 LIMIT $2 OFFSET $3",
             )
             .bind(tenant_id)
             .bind(limit + 1)
             .bind(offset)
             .fetch_all(&self.pool)
             .await
-        }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
+        })
+        .map_err(|e| ForumServiceError::internal(e.to_string()))?;
 
         let has_more = rows.len() as i64 > limit;
-        let items: Vec<ForumReputationRule> = rows.iter().take(limit as usize).map(row_to_reputation_rule).collect();
-        let next_cursor = if has_more { Some((offset + limit).to_string()) } else { None };
+        let items: Vec<ForumReputationRule> = rows
+            .iter()
+            .take(limit as usize)
+            .map(row_to_reputation_rule)
+            .collect();
+        let next_cursor = if has_more {
+            Some((offset + limit).to_string())
+        } else {
+            None
+        };
         Ok(CursorPage::new(items, next_cursor, has_more))
     }
 
-    fn create_reputation_rule(&self, ctx: &ForumRequestContext, command: &CreateReputationRuleCommand) -> Result<ForumReputationRule, ForumServiceError> {
+    fn create_reputation_rule(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &CreateReputationRuleCommand,
+    ) -> Result<ForumReputationRule, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let org_id = ctx.organization_id_value();
         let uuid = Uuid::new_v4().to_string();
@@ -2167,7 +2561,7 @@ impl ForumRepository for SqlxForumRepository {
                 ) VALUES (
                     $1, $2, $3, $4, $5, $6, $7,
                     'active', 1, NOW(), NOW(), $8, $9, 'default'
-                ) RETURNING *"
+                ) RETURNING *",
             )
             .bind(id)
             .bind(&uuid)
@@ -2180,11 +2574,16 @@ impl ForumRepository for SqlxForumRepository {
             .bind(org_id)
             .fetch_one(&self.pool)
             .await
-        }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
+        })
+        .map_err(|e| ForumServiceError::internal(e.to_string()))?;
         Ok(row_to_reputation_rule(&row))
     }
 
-    fn list_reputation_ledger(&self, ctx: &ForumRequestContext, command: &ListReputationLedgerCommand) -> Result<ReputationLedgerPageResult, ForumServiceError> {
+    fn list_reputation_ledger(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &ListReputationLedgerCommand,
+    ) -> Result<ReputationLedgerPageResult, ForumServiceError> {
         let offset = parse_cursor(&command.cursor);
         let limit = command.limit.max(1) as i64;
         let tenant_id = ctx.tenant_id_value();
@@ -2195,7 +2594,7 @@ impl ForumRepository for SqlxForumRepository {
                  WHERE tenant_id = $1 AND deleted_at IS NULL
                    AND ($2::bigint IS NULL OR user_id = $2)
                  ORDER BY created_at DESC, id DESC
-                 LIMIT $3 OFFSET $4"
+                 LIMIT $3 OFFSET $4",
             )
             .bind(tenant_id)
             .bind(command.user_id)
@@ -2203,15 +2602,28 @@ impl ForumRepository for SqlxForumRepository {
             .bind(offset)
             .fetch_all(&self.pool)
             .await
-        }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
+        })
+        .map_err(|e| ForumServiceError::internal(e.to_string()))?;
 
         let has_more = rows.len() as i64 > limit;
-        let items: Vec<ForumReputationLedger> = rows.iter().take(limit as usize).map(row_to_reputation_ledger).collect();
-        let next_cursor = if has_more { Some((offset + limit).to_string()) } else { None };
+        let items: Vec<ForumReputationLedger> = rows
+            .iter()
+            .take(limit as usize)
+            .map(row_to_reputation_ledger)
+            .collect();
+        let next_cursor = if has_more {
+            Some((offset + limit).to_string())
+        } else {
+            None
+        };
         Ok(CursorPage::new(items, next_cursor, has_more))
     }
 
-    fn list_trust_levels(&self, ctx: &ForumRequestContext, command: &ListTrustLevelsCommand) -> Result<TrustLevelPageResult, ForumServiceError> {
+    fn list_trust_levels(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &ListTrustLevelsCommand,
+    ) -> Result<TrustLevelPageResult, ForumServiceError> {
         let offset = parse_cursor(&command.cursor);
         let limit = command.limit.max(1) as i64;
         let tenant_id = ctx.tenant_id_value();
@@ -2221,22 +2633,35 @@ impl ForumRepository for SqlxForumRepository {
                 "SELECT * FROM forum_trust_level
                  WHERE tenant_id = $1 AND deleted_at IS NULL AND status = 'active'
                  ORDER BY level_no ASC
-                 LIMIT $2 OFFSET $3"
+                 LIMIT $2 OFFSET $3",
             )
             .bind(tenant_id)
             .bind(limit + 1)
             .bind(offset)
             .fetch_all(&self.pool)
             .await
-        }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
+        })
+        .map_err(|e| ForumServiceError::internal(e.to_string()))?;
 
         let has_more = rows.len() as i64 > limit;
-        let items: Vec<ForumTrustLevel> = rows.iter().take(limit as usize).map(row_to_trust_level).collect();
-        let next_cursor = if has_more { Some((offset + limit).to_string()) } else { None };
+        let items: Vec<ForumTrustLevel> = rows
+            .iter()
+            .take(limit as usize)
+            .map(row_to_trust_level)
+            .collect();
+        let next_cursor = if has_more {
+            Some((offset + limit).to_string())
+        } else {
+            None
+        };
         Ok(CursorPage::new(items, next_cursor, has_more))
     }
 
-    fn create_trust_level(&self, ctx: &ForumRequestContext, command: &CreateTrustLevelCommand) -> Result<ForumTrustLevel, ForumServiceError> {
+    fn create_trust_level(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &CreateTrustLevelCommand,
+    ) -> Result<ForumTrustLevel, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let org_id = ctx.organization_id_value();
         let uuid = Uuid::new_v4().to_string();
@@ -2251,7 +2676,7 @@ impl ForumRepository for SqlxForumRepository {
                 ) VALUES (
                     $1, $2, $3, $4, $5, $6, $7,
                     'active', 1, NOW(), NOW(), $8, $9, 'default'
-                ) RETURNING *"
+                ) RETURNING *",
             )
             .bind(id)
             .bind(&uuid)
@@ -2264,11 +2689,16 @@ impl ForumRepository for SqlxForumRepository {
             .bind(org_id)
             .fetch_one(&self.pool)
             .await
-        }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
+        })
+        .map_err(|e| ForumServiceError::internal(e.to_string()))?;
         Ok(row_to_trust_level(&row))
     }
 
-    fn list_badges(&self, ctx: &ForumRequestContext, command: &ListBadgesCommand) -> Result<BadgePageResult, ForumServiceError> {
+    fn list_badges(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &ListBadgesCommand,
+    ) -> Result<BadgePageResult, ForumServiceError> {
         let offset = parse_cursor(&command.cursor);
         let limit = command.limit.max(1) as i64;
         let tenant_id = ctx.tenant_id_value();
@@ -2278,22 +2708,31 @@ impl ForumRepository for SqlxForumRepository {
                 "SELECT * FROM forum_badge
                  WHERE tenant_id = $1 AND deleted_at IS NULL AND status = 'active'
                  ORDER BY created_at DESC, id DESC
-                 LIMIT $2 OFFSET $3"
+                 LIMIT $2 OFFSET $3",
             )
             .bind(tenant_id)
             .bind(limit + 1)
             .bind(offset)
             .fetch_all(&self.pool)
             .await
-        }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
+        })
+        .map_err(|e| ForumServiceError::internal(e.to_string()))?;
 
         let has_more = rows.len() as i64 > limit;
         let items: Vec<ForumBadge> = rows.iter().take(limit as usize).map(row_to_badge).collect();
-        let next_cursor = if has_more { Some((offset + limit).to_string()) } else { None };
+        let next_cursor = if has_more {
+            Some((offset + limit).to_string())
+        } else {
+            None
+        };
         Ok(CursorPage::new(items, next_cursor, has_more))
     }
 
-    fn create_badge(&self, ctx: &ForumRequestContext, command: &CreateBadgeCommand) -> Result<ForumBadge, ForumServiceError> {
+    fn create_badge(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &CreateBadgeCommand,
+    ) -> Result<ForumBadge, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let org_id = ctx.organization_id_value();
         let uuid = Uuid::new_v4().to_string();
@@ -2308,7 +2747,7 @@ impl ForumRepository for SqlxForumRepository {
                 ) VALUES (
                     $1, $2, $3, $4, $5, $6, $7, $8,
                     'active', 1, NOW(), NOW(), $9, $10, 'default'
-                ) RETURNING *"
+                ) RETURNING *",
             )
             .bind(id)
             .bind(&uuid)
@@ -2322,11 +2761,16 @@ impl ForumRepository for SqlxForumRepository {
             .bind(org_id)
             .fetch_one(&self.pool)
             .await
-        }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
+        })
+        .map_err(|e| ForumServiceError::internal(e.to_string()))?;
         Ok(row_to_badge(&row))
     }
 
-    fn list_board_stats(&self, ctx: &ForumRequestContext, command: &ListBoardStatsCommand) -> Result<BoardStatsPageResult, ForumServiceError> {
+    fn list_board_stats(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &ListBoardStatsCommand,
+    ) -> Result<BoardStatsPageResult, ForumServiceError> {
         let offset = parse_cursor(&command.cursor);
         let limit = command.limit.max(1) as i64;
         let tenant_id = ctx.tenant_id_value();
@@ -2336,22 +2780,35 @@ impl ForumRepository for SqlxForumRepository {
                 "SELECT * FROM forum_board_stats
                  WHERE tenant_id = $1 AND deleted_at IS NULL
                  ORDER BY last_activity_at DESC NULLS LAST, id DESC
-                 LIMIT $2 OFFSET $3"
+                 LIMIT $2 OFFSET $3",
             )
             .bind(tenant_id)
             .bind(limit + 1)
             .bind(offset)
             .fetch_all(&self.pool)
             .await
-        }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
+        })
+        .map_err(|e| ForumServiceError::internal(e.to_string()))?;
 
         let has_more = rows.len() as i64 > limit;
-        let items: Vec<ForumBoardStats> = rows.iter().take(limit as usize).map(row_to_board_stats).collect();
-        let next_cursor = if has_more { Some((offset + limit).to_string()) } else { None };
+        let items: Vec<ForumBoardStats> = rows
+            .iter()
+            .take(limit as usize)
+            .map(row_to_board_stats)
+            .collect();
+        let next_cursor = if has_more {
+            Some((offset + limit).to_string())
+        } else {
+            None
+        };
         Ok(CursorPage::new(items, next_cursor, has_more))
     }
 
-    fn list_topic_stats(&self, ctx: &ForumRequestContext, command: &ListTopicStatsCommand) -> Result<TopicStatsPageResult, ForumServiceError> {
+    fn list_topic_stats(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &ListTopicStatsCommand,
+    ) -> Result<TopicStatsPageResult, ForumServiceError> {
         let offset = parse_cursor(&command.cursor);
         let limit = command.limit.max(1) as i64;
         let tenant_id = ctx.tenant_id_value();
@@ -2361,22 +2818,35 @@ impl ForumRepository for SqlxForumRepository {
                 "SELECT * FROM forum_topic_stats
                  WHERE tenant_id = $1 AND deleted_at IS NULL
                  ORDER BY vote_score DESC, topic_id DESC
-                 LIMIT $2 OFFSET $3"
+                 LIMIT $2 OFFSET $3",
             )
             .bind(tenant_id)
             .bind(limit + 1)
             .bind(offset)
             .fetch_all(&self.pool)
             .await
-        }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
+        })
+        .map_err(|e| ForumServiceError::internal(e.to_string()))?;
 
         let has_more = rows.len() as i64 > limit;
-        let items: Vec<ForumTopicStats> = rows.iter().take(limit as usize).map(row_to_topic_stats).collect();
-        let next_cursor = if has_more { Some((offset + limit).to_string()) } else { None };
+        let items: Vec<ForumTopicStats> = rows
+            .iter()
+            .take(limit as usize)
+            .map(row_to_topic_stats)
+            .collect();
+        let next_cursor = if has_more {
+            Some((offset + limit).to_string())
+        } else {
+            None
+        };
         Ok(CursorPage::new(items, next_cursor, has_more))
     }
 
-    fn create_audit_action(&self, ctx: &ForumRequestContext, command: &CreateAuditActionCommand) -> Result<ForumAuditAction, ForumServiceError> {
+    fn create_audit_action(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &CreateAuditActionCommand,
+    ) -> Result<ForumAuditAction, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let org_id = ctx.organization_id_value();
         let user_id = ctx.user_id_value();
@@ -2392,7 +2862,7 @@ impl ForumRepository for SqlxForumRepository {
                 ) VALUES (
                     $1, $2, $3, $4, $5, $6, $7,
                     'active', 1, NOW(), NOW(), $8, $9, 'default'
-                ) RETURNING *"
+                ) RETURNING *",
             )
             .bind(id)
             .bind(&uuid)
@@ -2405,7 +2875,8 @@ impl ForumRepository for SqlxForumRepository {
             .bind(org_id)
             .fetch_one(&self.pool)
             .await
-        }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
+        })
+        .map_err(|e| ForumServiceError::internal(e.to_string()))?;
         Ok(row_to_audit_action(&row))
     }
 
@@ -2423,22 +2894,35 @@ impl ForumRepository for SqlxForumRepository {
                 "SELECT * FROM forum_audit_action
                  WHERE tenant_id = $1 AND status = 'active'
                  ORDER BY created_at DESC, id DESC
-                 LIMIT $2 OFFSET $3"
+                 LIMIT $2 OFFSET $3",
             )
             .bind(tenant_id)
             .bind(limit + 1)
             .bind(offset)
             .fetch_all(&self.pool)
             .await
-        }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
+        })
+        .map_err(|e| ForumServiceError::internal(e.to_string()))?;
 
         let has_more = rows.len() as i64 > limit;
-        let items: Vec<ForumAuditAction> = rows.iter().take(limit as usize).map(row_to_audit_action).collect();
-        let next_cursor = if has_more { Some((offset + limit).to_string()) } else { None };
+        let items: Vec<ForumAuditAction> = rows
+            .iter()
+            .take(limit as usize)
+            .map(row_to_audit_action)
+            .collect();
+        let next_cursor = if has_more {
+            Some((offset + limit).to_string())
+        } else {
+            None
+        };
         Ok(CursorPage::new(items, next_cursor, has_more))
     }
 
-    fn list_tags(&self, ctx: &ForumRequestContext, command: &ListTagsCommand) -> Result<TagPageResult, ForumServiceError> {
+    fn list_tags(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &ListTagsCommand,
+    ) -> Result<TagPageResult, ForumServiceError> {
         let offset = parse_cursor(&command.cursor);
         let limit = command.limit.max(1) as i64;
         let tenant_id = ctx.tenant_id_value();
@@ -2451,7 +2935,7 @@ impl ForumRepository for SqlxForumRepository {
                    AND status = 'active'
                    AND ($2::bigint IS NULL OR space_id = $2)
                  ORDER BY usage_count DESC, id ASC
-                 LIMIT $3 OFFSET $4"
+                 LIMIT $3 OFFSET $4",
             )
             .bind(tenant_id)
             .bind(command.space_id)
@@ -2459,15 +2943,24 @@ impl ForumRepository for SqlxForumRepository {
             .bind(offset)
             .fetch_all(&self.pool)
             .await
-        }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
+        })
+        .map_err(|e| ForumServiceError::internal(e.to_string()))?;
 
         let has_more = rows.len() as i64 > limit;
         let items: Vec<ForumTag> = rows.iter().take(limit as usize).map(row_to_tag).collect();
-        let next_cursor = if has_more { Some((offset + limit).to_string()) } else { None };
+        let next_cursor = if has_more {
+            Some((offset + limit).to_string())
+        } else {
+            None
+        };
         Ok(CursorPage::new(items, next_cursor, has_more))
     }
 
-    fn list_topic_prefixes(&self, ctx: &ForumRequestContext, command: &ListTopicPrefixesCommand) -> Result<TopicPrefixPageResult, ForumServiceError> {
+    fn list_topic_prefixes(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &ListTopicPrefixesCommand,
+    ) -> Result<TopicPrefixPageResult, ForumServiceError> {
         let offset = parse_cursor(&command.cursor);
         let limit = command.limit.max(1) as i64;
         let tenant_id = ctx.tenant_id_value();
@@ -2478,7 +2971,7 @@ impl ForumRepository for SqlxForumRepository {
                  WHERE tenant_id = $1 AND deleted_at IS NULL AND status = 'active'
                    AND ($2::bigint IS NULL OR board_id = $2)
                  ORDER BY sort_order ASC, id ASC
-                 LIMIT $3 OFFSET $4"
+                 LIMIT $3 OFFSET $4",
             )
             .bind(tenant_id)
             .bind(command.board_id)
@@ -2486,15 +2979,28 @@ impl ForumRepository for SqlxForumRepository {
             .bind(offset)
             .fetch_all(&self.pool)
             .await
-        }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
+        })
+        .map_err(|e| ForumServiceError::internal(e.to_string()))?;
 
         let has_more = rows.len() as i64 > limit;
-        let items: Vec<ForumTopicPrefix> = rows.iter().take(limit as usize).map(row_to_topic_prefix).collect();
-        let next_cursor = if has_more { Some((offset + limit).to_string()) } else { None };
+        let items: Vec<ForumTopicPrefix> = rows
+            .iter()
+            .take(limit as usize)
+            .map(row_to_topic_prefix)
+            .collect();
+        let next_cursor = if has_more {
+            Some((offset + limit).to_string())
+        } else {
+            None
+        };
         Ok(CursorPage::new(items, next_cursor, has_more))
     }
 
-    fn create_topic_prefix(&self, ctx: &ForumRequestContext, command: &CreateTopicPrefixCommand) -> Result<ForumTopicPrefix, ForumServiceError> {
+    fn create_topic_prefix(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &CreateTopicPrefixCommand,
+    ) -> Result<ForumTopicPrefix, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let org_id = ctx.organization_id_value();
         let uuid = Uuid::new_v4().to_string();
@@ -2509,7 +3015,7 @@ impl ForumRepository for SqlxForumRepository {
                 ) VALUES (
                     $1, $2, $3, $4, $5, $6, $7, $8,
                     'active', 1, NOW(), NOW(), $9, $10, 'default'
-                ) RETURNING *"
+                ) RETURNING *",
             )
             .bind(id)
             .bind(&uuid)
@@ -2523,11 +3029,16 @@ impl ForumRepository for SqlxForumRepository {
             .bind(org_id)
             .fetch_one(&self.pool)
             .await
-        }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
+        })
+        .map_err(|e| ForumServiceError::internal(e.to_string()))?;
         Ok(row_to_topic_prefix(&row))
     }
 
-    fn create_space(&self, ctx: &ForumRequestContext, command: &CreateSpaceCommand) -> Result<ForumSpace, ForumServiceError> {
+    fn create_space(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &CreateSpaceCommand,
+    ) -> Result<ForumSpace, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let org_id = ctx.organization_id_value();
         let uuid = Uuid::new_v4().to_string();
@@ -2541,7 +3052,7 @@ impl ForumRepository for SqlxForumRepository {
                 ) VALUES (
                     $1, $2, $3, $4, $5, $6, $7, $8, $9,
                     'active', 1, NOW(), NOW(), $10, $11, 'default'
-                ) RETURNING *"
+                ) RETURNING *",
             )
             .bind(id)
             .bind(&uuid)
@@ -2556,12 +3067,17 @@ impl ForumRepository for SqlxForumRepository {
             .bind(org_id)
             .fetch_one(&self.pool)
             .await
-        }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
+        })
+        .map_err(|e| ForumServiceError::internal(e.to_string()))?;
 
         Ok(row_to_space(&row))
     }
 
-    fn update_space(&self, ctx: &ForumRequestContext, command: &UpdateSpaceCommand) -> Result<ForumSpace, ForumServiceError> {
+    fn update_space(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &UpdateSpaceCommand,
+    ) -> Result<ForumSpace, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let row = run_db!(async {
             sqlx::query(
@@ -2572,7 +3088,7 @@ impl ForumRepository for SqlxForumRepository {
                      version = version + 1,
                      updated_at = NOW()
                  WHERE id = $4 AND tenant_id = $5
-                 RETURNING *"
+                 RETURNING *",
             )
             .bind(command.name.as_deref())
             .bind(command.description.as_deref())
@@ -2581,14 +3097,21 @@ impl ForumRepository for SqlxForumRepository {
             .bind(tenant_id)
             .fetch_one(&self.pool)
             .await
-        }).map_err(|e| match e {
-            sqlx::Error::RowNotFound => ForumServiceError::not_found("space", command.space_id.to_string()),
+        })
+        .map_err(|e| match e {
+            sqlx::Error::RowNotFound => {
+                ForumServiceError::not_found("space", command.space_id.to_string())
+            }
             e => ForumServiceError::internal(e.to_string()),
         })?;
         Ok(row_to_space(&row))
     }
 
-    fn create_attachment(&self, ctx: &ForumRequestContext, command: &CreateAttachmentCommand) -> Result<ForumAttachment, ForumServiceError> {
+    fn create_attachment(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &CreateAttachmentCommand,
+    ) -> Result<ForumAttachment, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let org_id = ctx.organization_id_value();
         let uuid = Uuid::new_v4().to_string();
@@ -2625,7 +3148,11 @@ impl ForumRepository for SqlxForumRepository {
         Ok(row_to_attachment(&row))
     }
 
-    fn create_subscription(&self, ctx: &ForumRequestContext, command: &CreateSubscriptionCommand) -> Result<ForumSubscription, ForumServiceError> {
+    fn create_subscription(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &CreateSubscriptionCommand,
+    ) -> Result<ForumSubscription, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let org_id = ctx.organization_id_value();
         let user_id = ctx.user_id_value();
@@ -2640,7 +3167,7 @@ impl ForumRepository for SqlxForumRepository {
                 ) VALUES (
                     $1, $2, $3, $4, $5, $6, $7,
                     'active', 1, NOW(), NOW(), $8, $9, 'default'
-                ) RETURNING *"
+                ) RETURNING *",
             )
             .bind(id)
             .bind(&uuid)
@@ -2653,11 +3180,16 @@ impl ForumRepository for SqlxForumRepository {
             .bind(org_id)
             .fetch_one(&self.pool)
             .await
-        }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
+        })
+        .map_err(|e| ForumServiceError::internal(e.to_string()))?;
         Ok(row_to_subscription(&row))
     }
 
-    fn update_subscription(&self, ctx: &ForumRequestContext, command: &UpdateSubscriptionCommand) -> Result<ForumSubscription, ForumServiceError> {
+    fn update_subscription(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &UpdateSubscriptionCommand,
+    ) -> Result<ForumSubscription, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let row = run_db!(async {
             sqlx::query(
@@ -2667,7 +3199,7 @@ impl ForumRepository for SqlxForumRepository {
                      version = version + 1,
                      updated_at = NOW()
                  WHERE id = $3 AND tenant_id = $4 AND status = 'active'
-                 RETURNING *"
+                 RETURNING *",
             )
             .bind(command.notify_level.as_deref())
             .bind(command.delivery_channels.as_deref())
@@ -2675,14 +3207,21 @@ impl ForumRepository for SqlxForumRepository {
             .bind(tenant_id)
             .fetch_one(&self.pool)
             .await
-        }).map_err(|e| match e {
-            sqlx::Error::RowNotFound => ForumServiceError::not_found("subscription", command.subscription_id.to_string()),
+        })
+        .map_err(|e| match e {
+            sqlx::Error::RowNotFound => {
+                ForumServiceError::not_found("subscription", command.subscription_id.to_string())
+            }
             e => ForumServiceError::internal(e.to_string()),
         })?;
         Ok(row_to_subscription(&row))
     }
 
-    fn list_subscriptions(&self, ctx: &ForumRequestContext, command: &ListSubscriptionsCommand) -> Result<SubscriptionPageResult, ForumServiceError> {
+    fn list_subscriptions(
+        &self,
+        ctx: &ForumRequestContext,
+        command: &ListSubscriptionsCommand,
+    ) -> Result<SubscriptionPageResult, ForumServiceError> {
         let offset = parse_cursor(&command.cursor);
         let limit = command.limit.max(1) as i64;
         let tenant_id = ctx.tenant_id_value();
@@ -2695,7 +3234,7 @@ impl ForumRepository for SqlxForumRepository {
                    AND ($5::bigint IS NULL OR target_id = $5)
                    AND status = 'active'
                  ORDER BY created_at DESC
-                 LIMIT $3 OFFSET $4"
+                 LIMIT $3 OFFSET $4",
             )
             .bind(tenant_id)
             .bind(command.target_type.as_deref())
@@ -2704,15 +3243,28 @@ impl ForumRepository for SqlxForumRepository {
             .bind(command.target_id)
             .fetch_all(&self.pool)
             .await
-        }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
+        })
+        .map_err(|e| ForumServiceError::internal(e.to_string()))?;
 
         let has_more = rows.len() as i64 > limit;
-        let items: Vec<ForumSubscription> = rows.iter().take(limit as usize).map(row_to_subscription).collect();
-        let next_cursor = if has_more { Some((offset + limit).to_string()) } else { None };
+        let items: Vec<ForumSubscription> = rows
+            .iter()
+            .take(limit as usize)
+            .map(row_to_subscription)
+            .collect();
+        let next_cursor = if has_more {
+            Some((offset + limit).to_string())
+        } else {
+            None
+        };
         Ok(CursorPage::new(items, next_cursor, has_more))
     }
 
-    fn check_space_has_topics(&self, ctx: &ForumRequestContext, space_id: i64) -> Result<bool, ForumServiceError> {
+    fn check_space_has_topics(
+        &self,
+        ctx: &ForumRequestContext,
+        space_id: i64,
+    ) -> Result<bool, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let count: i64 = run_db!(async {
             sqlx::query_scalar(
@@ -2726,7 +3278,12 @@ impl ForumRepository for SqlxForumRepository {
         Ok(count > 0)
     }
 
-    fn check_node_cycle(&self, ctx: &ForumRequestContext, node_id: i64, new_parent_id: i64) -> Result<bool, ForumServiceError> {
+    fn check_node_cycle(
+        &self,
+        ctx: &ForumRequestContext,
+        node_id: i64,
+        new_parent_id: i64,
+    ) -> Result<bool, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let count: i64 = run_db!(async {
             sqlx::query_scalar(
@@ -2745,7 +3302,11 @@ impl ForumRepository for SqlxForumRepository {
         Ok(count > 0)
     }
 
-    fn check_node_is_board(&self, ctx: &ForumRequestContext, node_id: i64) -> Result<bool, ForumServiceError> {
+    fn check_node_is_board(
+        &self,
+        ctx: &ForumRequestContext,
+        node_id: i64,
+    ) -> Result<bool, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let node_type: Option<String> = run_db!(async {
             sqlx::query_scalar(
@@ -2762,7 +3323,11 @@ impl ForumRepository for SqlxForumRepository {
         Ok(node_type.as_deref() == Some("board"))
     }
 
-    fn check_board_exists(&self, ctx: &ForumRequestContext, board_id: i64) -> Result<bool, ForumServiceError> {
+    fn check_board_exists(
+        &self,
+        ctx: &ForumRequestContext,
+        board_id: i64,
+    ) -> Result<bool, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let count: i64 = run_db!(async {
             sqlx::query_scalar(
@@ -2776,7 +3341,12 @@ impl ForumRepository for SqlxForumRepository {
         Ok(count > 0)
     }
 
-    fn check_owner_exists(&self, ctx: &ForumRequestContext, owner_type: &str, owner_id: i64) -> Result<bool, ForumServiceError> {
+    fn check_owner_exists(
+        &self,
+        ctx: &ForumRequestContext,
+        owner_type: &str,
+        owner_id: i64,
+    ) -> Result<bool, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let sql = match owner_type {
             "topic" => "SELECT COUNT(*) FROM forum_topic WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL",
@@ -2789,11 +3359,16 @@ impl ForumRepository for SqlxForumRepository {
                 .bind(tenant_id)
                 .fetch_one(&self.pool)
                 .await
-        }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
+        })
+        .map_err(|e| ForumServiceError::internal(e.to_string()))?;
         Ok(count > 0)
     }
 
-    fn check_poll_exists(&self, ctx: &ForumRequestContext, poll_id: i64) -> Result<bool, ForumServiceError> {
+    fn check_poll_exists(
+        &self,
+        ctx: &ForumRequestContext,
+        poll_id: i64,
+    ) -> Result<bool, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let count: i64 = run_db!(async {
             sqlx::query_scalar(
@@ -2807,7 +3382,11 @@ impl ForumRepository for SqlxForumRepository {
         Ok(count > 0)
     }
 
-    fn count_poll_votes(&self, ctx: &ForumRequestContext, poll_id: i64) -> Result<i64, ForumServiceError> {
+    fn count_poll_votes(
+        &self,
+        ctx: &ForumRequestContext,
+        poll_id: i64,
+    ) -> Result<i64, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let count: i64 = run_db!(async {
             sqlx::query_scalar(
@@ -2821,7 +3400,11 @@ impl ForumRepository for SqlxForumRepository {
         Ok(count)
     }
 
-    fn check_poll_selection_mode(&self, ctx: &ForumRequestContext, poll_id: i64) -> Result<String, ForumServiceError> {
+    fn check_poll_selection_mode(
+        &self,
+        ctx: &ForumRequestContext,
+        poll_id: i64,
+    ) -> Result<String, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let mode: Option<String> = run_db!(async {
             sqlx::query_scalar(
@@ -2838,7 +3421,13 @@ impl ForumRepository for SqlxForumRepository {
         Ok(mode.unwrap_or_else(|| "single".to_string()))
     }
 
-    fn check_active_vote(&self, ctx: &ForumRequestContext, target_type: &str, target_id: i64, actor_user_id: i64) -> Result<bool, ForumServiceError> {
+    fn check_active_vote(
+        &self,
+        ctx: &ForumRequestContext,
+        target_type: &str,
+        target_id: i64,
+        actor_user_id: i64,
+    ) -> Result<bool, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let count: i64 = run_db!(async {
             sqlx::query_scalar(
@@ -2854,7 +3443,11 @@ impl ForumRepository for SqlxForumRepository {
         Ok(count > 0)
     }
 
-    fn check_active_sanctions(&self, ctx: &ForumRequestContext, user_id: i64) -> Result<Vec<ForumSanction>, ForumServiceError> {
+    fn check_active_sanctions(
+        &self,
+        ctx: &ForumRequestContext,
+        user_id: i64,
+    ) -> Result<Vec<ForumSanction>, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let rows = run_db!(async {
             sqlx::query(
@@ -2862,17 +3455,24 @@ impl ForumRepository for SqlxForumRepository {
                  WHERE user_id = $1 AND tenant_id = $2
                    AND status = 'active'
                    AND (expires_at IS NULL OR expires_at > NOW())
-                   AND lifted_at IS NULL"
+                   AND lifted_at IS NULL",
             )
             .bind(user_id)
             .bind(tenant_id)
             .fetch_all(&self.pool)
             .await
-        }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
+        })
+        .map_err(|e| ForumServiceError::internal(e.to_string()))?;
         Ok(rows.iter().map(row_to_sanction).collect())
     }
 
-    fn check_active_appeal(&self, ctx: &ForumRequestContext, sanction_id: Option<i64>, case_id: Option<i64>, appellant_user_id: i64) -> Result<bool, ForumServiceError> {
+    fn check_active_appeal(
+        &self,
+        ctx: &ForumRequestContext,
+        sanction_id: Option<i64>,
+        case_id: Option<i64>,
+        appellant_user_id: i64,
+    ) -> Result<bool, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let count: i64 = run_db!(async {
             sqlx::query_scalar(
@@ -2887,11 +3487,16 @@ impl ForumRepository for SqlxForumRepository {
             .bind(case_id)
             .fetch_one(&self.pool)
             .await
-        }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
+        })
+        .map_err(|e| ForumServiceError::internal(e.to_string()))?;
         Ok(count > 0)
     }
 
-    fn count_topics_in_space(&self, ctx: &ForumRequestContext, space_id: i64) -> Result<i64, ForumServiceError> {
+    fn count_topics_in_space(
+        &self,
+        ctx: &ForumRequestContext,
+        space_id: i64,
+    ) -> Result<i64, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let count: i64 = run_db!(async {
             sqlx::query_scalar(
@@ -2905,7 +3510,11 @@ impl ForumRepository for SqlxForumRepository {
         Ok(count)
     }
 
-    fn get_next_revision_no(&self, ctx: &ForumRequestContext, topic_id: i64) -> Result<i32, ForumServiceError> {
+    fn get_next_revision_no(
+        &self,
+        ctx: &ForumRequestContext,
+        topic_id: i64,
+    ) -> Result<i32, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let next_no: i32 = run_db!(async {
             sqlx::query_scalar(
@@ -2919,7 +3528,11 @@ impl ForumRepository for SqlxForumRepository {
         Ok(next_no)
     }
 
-    fn get_next_reply_no(&self, ctx: &ForumRequestContext, topic_id: i64) -> Result<i32, ForumServiceError> {
+    fn get_next_reply_no(
+        &self,
+        ctx: &ForumRequestContext,
+        topic_id: i64,
+    ) -> Result<i32, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let next_no: i32 = run_db!(async {
             sqlx::query_scalar(
@@ -2933,7 +3546,11 @@ impl ForumRepository for SqlxForumRepository {
         Ok(next_no)
     }
 
-    fn get_next_case_no(&self, _ctx: &ForumRequestContext, tenant_id: i64) -> Result<String, ForumServiceError> {
+    fn get_next_case_no(
+        &self,
+        _ctx: &ForumRequestContext,
+        tenant_id: i64,
+    ) -> Result<String, ForumServiceError> {
         let case_no: String = run_db!(async {
             sqlx::query_scalar(
                 "SELECT 'MOD-' || TO_CHAR(NOW(), 'YYYY') || '-' || LPAD(COALESCE(MAX(CAST(SUBSTRING(case_no FROM 10) AS INTEGER)), 0) + 1, 4, '0')
@@ -2947,13 +3564,19 @@ impl ForumRepository for SqlxForumRepository {
         Ok(case_no)
     }
 
-    fn check_duplicate_queue_item(&self, ctx: &ForumRequestContext, target_type: &str, target_id: i64, source_type: &str) -> Result<bool, ForumServiceError> {
+    fn check_duplicate_queue_item(
+        &self,
+        ctx: &ForumRequestContext,
+        target_type: &str,
+        target_id: i64,
+        source_type: &str,
+    ) -> Result<bool, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let count: i64 = run_db!(async {
             sqlx::query_scalar(
                 "SELECT COUNT(*) FROM forum_moderation_queue_item
                  WHERE tenant_id = $1 AND target_type = $2 AND target_id = $3 AND source_type = $4
-                   AND queue_status IN ('open', 'assigned', 'in_review')"
+                   AND queue_status IN ('open', 'assigned', 'in_review')",
             )
             .bind(tenant_id)
             .bind(target_type)
@@ -2961,11 +3584,17 @@ impl ForumRepository for SqlxForumRepository {
             .bind(source_type)
             .fetch_one(&self.pool)
             .await
-        }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
+        })
+        .map_err(|e| ForumServiceError::internal(e.to_string()))?;
         Ok(count > 0)
     }
 
-    fn check_idempotency_key(&self, ctx: &ForumRequestContext, key: &str, operation_id: &str) -> Result<Option<ForumIdempotencyRecord>, ForumServiceError> {
+    fn check_idempotency_key(
+        &self,
+        ctx: &ForumRequestContext,
+        key: &str,
+        operation_id: &str,
+    ) -> Result<Option<ForumIdempotencyRecord>, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let row = run_db!(async {
             sqlx::query(
@@ -2981,7 +3610,13 @@ impl ForumRepository for SqlxForumRepository {
         Ok(row.map(|r| row_to_idempotency_record(&r)))
     }
 
-    fn check_message_id_exists(&self, ctx: &ForumRequestContext, source_system: &str, message_id: &str, consumer_name: &str) -> Result<bool, ForumServiceError> {
+    fn check_message_id_exists(
+        &self,
+        ctx: &ForumRequestContext,
+        source_system: &str,
+        message_id: &str,
+        consumer_name: &str,
+    ) -> Result<bool, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let count: i64 = run_db!(async {
             sqlx::query_scalar(
@@ -2998,7 +3633,14 @@ impl ForumRepository for SqlxForumRepository {
         Ok(count > 0)
     }
 
-    fn check_message_payload_hash(&self, ctx: &ForumRequestContext, source_system: &str, message_id: &str, consumer_name: &str, payload_hash: &str) -> Result<bool, ForumServiceError> {
+    fn check_message_payload_hash(
+        &self,
+        ctx: &ForumRequestContext,
+        source_system: &str,
+        message_id: &str,
+        consumer_name: &str,
+        payload_hash: &str,
+    ) -> Result<bool, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let count: i64 = run_db!(async {
             sqlx::query_scalar(
@@ -3016,7 +3658,11 @@ impl ForumRepository for SqlxForumRepository {
         Ok(count > 0)
     }
 
-    fn get_reputation_balance(&self, ctx: &ForumRequestContext, user_id: i64) -> Result<i64, ForumServiceError> {
+    fn get_reputation_balance(
+        &self,
+        ctx: &ForumRequestContext,
+        user_id: i64,
+    ) -> Result<i64, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let balance: i64 = run_db!(async {
             sqlx::query_scalar(
@@ -3031,58 +3677,77 @@ impl ForumRepository for SqlxForumRepository {
         Ok(balance)
     }
 
-    fn get_topic_stats(&self, ctx: &ForumRequestContext, topic_id: i64) -> Result<ForumTopicStats, ForumServiceError> {
+    fn get_topic_stats(
+        &self,
+        ctx: &ForumRequestContext,
+        topic_id: i64,
+    ) -> Result<ForumTopicStats, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let row = run_db!(async {
-            sqlx::query(
-                "SELECT * FROM forum_topic_stats WHERE topic_id = $1 AND tenant_id = $2"
-            )
-            .bind(topic_id)
-            .bind(tenant_id)
-            .fetch_one(&self.pool)
-            .await
-        }).map_err(|e| match e {
-            sqlx::Error::RowNotFound => ForumServiceError::not_found("topic_stats", topic_id.to_string()),
+            sqlx::query("SELECT * FROM forum_topic_stats WHERE topic_id = $1 AND tenant_id = $2")
+                .bind(topic_id)
+                .bind(tenant_id)
+                .fetch_one(&self.pool)
+                .await
+        })
+        .map_err(|e| match e {
+            sqlx::Error::RowNotFound => {
+                ForumServiceError::not_found("topic_stats", topic_id.to_string())
+            }
             e => ForumServiceError::internal(e.to_string()),
         })?;
         Ok(row_to_topic_stats(&row))
     }
 
-    fn get_board_stats(&self, ctx: &ForumRequestContext, board_id: i64) -> Result<ForumBoardStats, ForumServiceError> {
+    fn get_board_stats(
+        &self,
+        ctx: &ForumRequestContext,
+        board_id: i64,
+    ) -> Result<ForumBoardStats, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let row = run_db!(async {
-            sqlx::query(
-                "SELECT * FROM forum_board_stats WHERE board_id = $1 AND tenant_id = $2"
-            )
-            .bind(board_id)
-            .bind(tenant_id)
-            .fetch_one(&self.pool)
-            .await
-        }).map_err(|e| match e {
-            sqlx::Error::RowNotFound => ForumServiceError::not_found("board_stats", board_id.to_string()),
+            sqlx::query("SELECT * FROM forum_board_stats WHERE board_id = $1 AND tenant_id = $2")
+                .bind(board_id)
+                .bind(tenant_id)
+                .fetch_one(&self.pool)
+                .await
+        })
+        .map_err(|e| match e {
+            sqlx::Error::RowNotFound => {
+                ForumServiceError::not_found("board_stats", board_id.to_string())
+            }
             e => ForumServiceError::internal(e.to_string()),
         })?;
         Ok(row_to_board_stats(&row))
     }
 
-    fn get_member_stats(&self, ctx: &ForumRequestContext, user_id: i64) -> Result<ForumMemberStats, ForumServiceError> {
+    fn get_member_stats(
+        &self,
+        ctx: &ForumRequestContext,
+        user_id: i64,
+    ) -> Result<ForumMemberStats, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let row = run_db!(async {
-            sqlx::query(
-                "SELECT * FROM forum_member_stats WHERE user_id = $1 AND tenant_id = $2"
-            )
-            .bind(user_id)
-            .bind(tenant_id)
-            .fetch_one(&self.pool)
-            .await
-        }).map_err(|e| match e {
-            sqlx::Error::RowNotFound => ForumServiceError::not_found("member_stats", user_id.to_string()),
+            sqlx::query("SELECT * FROM forum_member_stats WHERE user_id = $1 AND tenant_id = $2")
+                .bind(user_id)
+                .bind(tenant_id)
+                .fetch_one(&self.pool)
+                .await
+        })
+        .map_err(|e| match e {
+            sqlx::Error::RowNotFound => {
+                ForumServiceError::not_found("member_stats", user_id.to_string())
+            }
             e => ForumServiceError::internal(e.to_string()),
         })?;
         Ok(row_to_member_stats(&row))
     }
 
-    fn update_tag_usage_count(&self, ctx: &ForumRequestContext, tag_id: i64) -> Result<(), ForumServiceError> {
+    fn update_tag_usage_count(
+        &self,
+        ctx: &ForumRequestContext,
+        tag_id: i64,
+    ) -> Result<(), ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         run_db!(async {
             sqlx::query(
@@ -3098,7 +3763,12 @@ impl ForumRepository for SqlxForumRepository {
         Ok(())
     }
 
-    fn update_unread_count(&self, ctx: &ForumRequestContext, topic_id: i64, user_id: i64) -> Result<(), ForumServiceError> {
+    fn update_unread_count(
+        &self,
+        ctx: &ForumRequestContext,
+        topic_id: i64,
+        user_id: i64,
+    ) -> Result<(), ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         run_db!(async {
             sqlx::query(
@@ -3118,7 +3788,12 @@ impl ForumRepository for SqlxForumRepository {
         Ok(())
     }
 
-    fn get_notification_preferences(&self, ctx: &ForumRequestContext, user_id: i64, event_type: &str) -> Result<Vec<ForumNotificationPreference>, ForumServiceError> {
+    fn get_notification_preferences(
+        &self,
+        ctx: &ForumRequestContext,
+        user_id: i64,
+        event_type: &str,
+    ) -> Result<Vec<ForumNotificationPreference>, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let rows = run_db!(async {
             sqlx::query(
@@ -3133,7 +3808,11 @@ impl ForumRepository for SqlxForumRepository {
         Ok(rows.iter().map(row_to_notification_preference).collect())
     }
 
-    fn insert_outbox_event(&self, ctx: &ForumRequestContext, event: &ForumOutboxEvent) -> Result<(), ForumServiceError> {
+    fn insert_outbox_event(
+        &self,
+        ctx: &ForumRequestContext,
+        event: &ForumOutboxEvent,
+    ) -> Result<(), ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let org_id = ctx.organization_id_value();
         let id = self.next_id()?;
@@ -3164,7 +3843,11 @@ impl ForumRepository for SqlxForumRepository {
         Ok(())
     }
 
-    fn update_topic_stats(&self, ctx: &ForumRequestContext, topic_id: i64) -> Result<(), ForumServiceError> {
+    fn update_topic_stats(
+        &self,
+        ctx: &ForumRequestContext,
+        topic_id: i64,
+    ) -> Result<(), ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         run_db!(async {
             sqlx::query(
@@ -3181,7 +3864,11 @@ impl ForumRepository for SqlxForumRepository {
         Ok(())
     }
 
-    fn update_board_stats(&self, ctx: &ForumRequestContext, board_id: i64) -> Result<(), ForumServiceError> {
+    fn update_board_stats(
+        &self,
+        ctx: &ForumRequestContext,
+        board_id: i64,
+    ) -> Result<(), ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         run_db!(async {
             sqlx::query(
@@ -3199,7 +3886,11 @@ impl ForumRepository for SqlxForumRepository {
         Ok(())
     }
 
-    fn update_member_stats(&self, ctx: &ForumRequestContext, user_id: i64) -> Result<(), ForumServiceError> {
+    fn update_member_stats(
+        &self,
+        ctx: &ForumRequestContext,
+        user_id: i64,
+    ) -> Result<(), ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         run_db!(async {
             sqlx::query(
