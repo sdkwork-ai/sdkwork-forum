@@ -26,7 +26,6 @@ paths:
       x-sdkwork-api-authority: sdkwork-forum-app-api
       x-sdkwork-domain: communication
       x-sdkwork-resource: forum_node
-      x-sdkwork-permission: forum.nodes.read
       x-sdkwork-tenant-scope: tenant
       x-sdkwork-auth-mode: dual-token
       responses:
@@ -70,7 +69,6 @@ paths:
       x-sdkwork-api-authority: sdkwork-forum-app-api
       x-sdkwork-domain: communication
       x-sdkwork-resource: forum_topic
-      x-sdkwork-permission: forum.topics.read
       x-sdkwork-tenant-scope: tenant
       x-sdkwork-auth-mode: dual-token
       parameters:
@@ -104,7 +102,6 @@ paths:
       x-sdkwork-api-authority: sdkwork-forum-app-api
       x-sdkwork-domain: communication
       x-sdkwork-resource: forum_topic
-      x-sdkwork-permission: forum.topics.create
       x-sdkwork-tenant-scope: tenant
       x-sdkwork-auth-mode: dual-token
       x-sdkwork-idempotent: true
@@ -156,7 +153,6 @@ paths:
       x-sdkwork-api-authority: sdkwork-forum-app-api
       x-sdkwork-domain: communication
       x-sdkwork-resource: forum_topic
-      x-sdkwork-permission: forum.topics.read
       x-sdkwork-tenant-scope: tenant
       x-sdkwork-auth-mode: dual-token
       parameters:
@@ -194,7 +190,6 @@ paths:
       x-sdkwork-api-authority: sdkwork-forum-app-api
       x-sdkwork-domain: communication
       x-sdkwork-resource: forum_topic
-      x-sdkwork-permission: forum.topics.update
       x-sdkwork-tenant-scope: tenant
       x-sdkwork-auth-mode: dual-token
       parameters:
@@ -238,7 +233,6 @@ paths:
       x-sdkwork-api-authority: sdkwork-forum-app-api
       x-sdkwork-domain: communication
       x-sdkwork-resource: forum_topic
-      x-sdkwork-permission: forum.topics.delete
       x-sdkwork-tenant-scope: tenant
       x-sdkwork-auth-mode: dual-token
       parameters:
@@ -261,7 +255,6 @@ paths:
       x-sdkwork-api-authority: sdkwork-forum-app-api
       x-sdkwork-domain: communication
       x-sdkwork-resource: forum_topic_reply
-      x-sdkwork-permission: forum.replies.read
       x-sdkwork-tenant-scope: tenant
       x-sdkwork-auth-mode: dual-token
       parameters:
@@ -289,7 +282,6 @@ paths:
       x-sdkwork-api-authority: sdkwork-forum-app-api
       x-sdkwork-domain: communication
       x-sdkwork-resource: forum_topic_reply
-      x-sdkwork-permission: forum.replies.create
       x-sdkwork-tenant-scope: tenant
       x-sdkwork-auth-mode: dual-token
       x-sdkwork-idempotent: true
@@ -342,7 +334,6 @@ paths:
       x-sdkwork-api-authority: sdkwork-forum-app-api
       x-sdkwork-domain: communication
       x-sdkwork-resource: forum_topic_reply
-      x-sdkwork-permission: forum.replies.update
       x-sdkwork-tenant-scope: tenant
       x-sdkwork-auth-mode: dual-token
       parameters:
@@ -386,7 +377,6 @@ paths:
       x-sdkwork-api-authority: sdkwork-forum-app-api
       x-sdkwork-domain: communication
       x-sdkwork-resource: forum_topic_reply
-      x-sdkwork-permission: forum.replies.delete
       x-sdkwork-tenant-scope: tenant
       x-sdkwork-auth-mode: dual-token
       parameters:
@@ -409,7 +399,6 @@ paths:
       x-sdkwork-api-authority: sdkwork-forum-app-api
       x-sdkwork-domain: communication
       x-sdkwork-resource: forum_topic_revision
-      x-sdkwork-permission: forum.topics.revisions.read
       x-sdkwork-tenant-scope: tenant
       x-sdkwork-auth-mode: dual-token
       parameters:
@@ -436,7 +425,6 @@ paths:
       x-sdkwork-api-authority: sdkwork-forum-app-api
       x-sdkwork-domain: communication
       x-sdkwork-resource: forum_reply_revision
-      x-sdkwork-permission: forum.replies.revisions.read
       x-sdkwork-tenant-scope: tenant
       x-sdkwork-auth-mode: dual-token
       parameters:
@@ -463,7 +451,6 @@ paths:
       x-sdkwork-api-authority: sdkwork-forum-app-api
       x-sdkwork-domain: communication
       x-sdkwork-resource: forum_question_profile
-      x-sdkwork-permission: forum.questions.accept
       x-sdkwork-tenant-scope: tenant
       x-sdkwork-auth-mode: dual-token
       parameters:
@@ -512,7 +499,6 @@ paths:
       x-sdkwork-api-authority: sdkwork-forum-app-api
       x-sdkwork-domain: communication
       x-sdkwork-resource: forum_question_profile
-      x-sdkwork-permission: forum.questions.accept
       x-sdkwork-tenant-scope: tenant
       x-sdkwork-auth-mode: dual-token
       parameters:
@@ -535,7 +521,6 @@ paths:
       x-sdkwork-api-authority: sdkwork-forum-app-api
       x-sdkwork-domain: communication
       x-sdkwork-resource: forum_poll_vote
-      x-sdkwork-permission: forum.polls.vote
       x-sdkwork-tenant-scope: tenant
       x-sdkwork-auth-mode: dual-token
       parameters:
@@ -575,7 +560,6 @@ paths:
       x-sdkwork-api-authority: sdkwork-forum-app-api
       x-sdkwork-domain: communication
       x-sdkwork-resource: forum_reaction
-      x-sdkwork-permission: forum.reactions.create
       x-sdkwork-tenant-scope: tenant
       x-sdkwork-auth-mode: dual-token
       requestBody:
@@ -607,7 +591,6 @@ paths:
       x-sdkwork-api-authority: sdkwork-forum-app-api
       x-sdkwork-domain: communication
       x-sdkwork-resource: forum_vote
-      x-sdkwork-permission: forum.votes.create
       x-sdkwork-tenant-scope: tenant
       x-sdkwork-auth-mode: dual-token
       requestBody:
@@ -639,7 +622,6 @@ paths:
       x-sdkwork-api-authority: sdkwork-forum-app-api
       x-sdkwork-domain: communication
       x-sdkwork-resource: forum_bookmark
-      x-sdkwork-permission: forum.bookmarks.update
       x-sdkwork-tenant-scope: tenant
       x-sdkwork-auth-mode: dual-token
       requestBody:
@@ -671,7 +653,6 @@ paths:
       x-sdkwork-api-authority: sdkwork-forum-app-api
       x-sdkwork-domain: communication
       x-sdkwork-resource: forum_read_state
-      x-sdkwork-permission: forum.readState.update
       x-sdkwork-tenant-scope: tenant
       x-sdkwork-auth-mode: dual-token
       parameters:
@@ -710,7 +691,6 @@ paths:
       x-sdkwork-api-authority: sdkwork-forum-app-api
       x-sdkwork-domain: communication
       x-sdkwork-resource: forum_report
-      x-sdkwork-permission: forum.reports.create
       x-sdkwork-tenant-scope: tenant
       x-sdkwork-auth-mode: dual-token
       requestBody:
@@ -742,7 +722,6 @@ paths:
       x-sdkwork-api-authority: sdkwork-forum-app-api
       x-sdkwork-domain: communication
       x-sdkwork-resource: forum_search_document
-      x-sdkwork-permission: forum.search.read
       x-sdkwork-tenant-scope: tenant
       x-sdkwork-auth-mode: dual-token
       parameters:
