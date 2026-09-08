@@ -24,6 +24,7 @@
   "dependencies": {
     "@sdkwork/forum-h5-core": "workspace:*",
     "@sdkwork/forum-h5-discussion": "workspace:*",
+    "@sdkwork/sdk-common": "workspace:*",
     "axios": "^1.6.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
