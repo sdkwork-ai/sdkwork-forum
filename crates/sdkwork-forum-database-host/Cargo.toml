@@ -1,9 +1,13 @@
 [package]
+rust-version.workspace = true
 name = "sdkwork-forum-database-host"
 version.workspace = true
 edition.workspace = true
 description = "SDKWork Forum database lifecycle bootstrap."
 
+
+[lints]
+workspace = true
 [lib]
 name = "sdkwork_forum_database_host"
 path = "src/lib.rs"

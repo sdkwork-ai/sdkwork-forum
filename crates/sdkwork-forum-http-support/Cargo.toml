@@ -1,10 +1,14 @@
 [package]
+rust-version.workspace = true
 name = "sdkwork-forum-http-support"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 publish.workspace = true
 
+
+[lints]
+workspace = true
 [dependencies]
 axum.workspace = true
 base64 = "0.22"

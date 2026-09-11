@@ -1,10 +1,14 @@
 [package]
+rust-version.workspace = true
 name = "sdkwork-forum-service-host"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 publish.workspace = true
 
+
+[lints]
+workspace = true
 [dependencies]
 sdkwork-communication-forum-repository-sqlx = { workspace = true }
 sdkwork-communication-forum-service = { workspace = true }
