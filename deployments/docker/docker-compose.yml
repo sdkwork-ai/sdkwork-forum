@@ -10,6 +10,14 @@ x-database-environment: &database-environment
   SDKWORK_DATABASE_SSL_MODE: disable
   SDKWORK_DATABASE_MAX_CONNECTIONS: "10"
 
+# Shared log rotation policy (OPERATIONS_SPEC.md §2.3): every service rotates
+# at 10MB, keeping 3 files, so container logs cannot fill the host disk.
+x-default-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   forum-api:
     build:
@@ -25,6 +33,7 @@ services:
     depends_on:
       - postgres
       - search
+    logging: *default-logging
 
   forum-worker:
     build:
@@ -38,6 +47,7 @@ services:
     depends_on:
       - postgres
       - search
+    logging: *default-logging
 
   postgres:
     image: postgres:16
@@ -50,6 +60,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init/001-workspace-schema.sql:/docker-entrypoint-initdb.d/001-workspace-schema.sql:ro
+    logging: *default-logging
 
   search:
     image: opensearchproject/opensearch:2
@@ -60,6 +71,7 @@ services:
       - "9200:9200"
     volumes:
       - search_data:/usr/share/opensearch/data
+    logging: *default-logging
 
 volumes:
   postgres_data:
