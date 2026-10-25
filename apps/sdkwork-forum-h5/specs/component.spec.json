@@ -17,7 +17,7 @@
     "private": false,
     "manifests": [
       "package.json",
-      "sdkwork.app.config.json"
+      "agent.app.config.json"
     ]
   },
   "canonicalSpecs": [

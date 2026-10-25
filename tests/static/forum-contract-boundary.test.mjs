@@ -5,7 +5,7 @@ const root = process.cwd();
 
 const requiredFiles = [
   "AGENTS.md",
-  "sdkwork.app.config.json",
+  "agent.app.config.json",
   "specs/component.spec.json",
   "specs/forum-database.schema.yaml",
   "apis/app-api/forum/openapi.yaml",

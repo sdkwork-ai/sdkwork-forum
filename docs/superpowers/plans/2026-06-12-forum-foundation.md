@@ -15,7 +15,7 @@
 **Files:**
 - Create: `AGENTS.md`, `CODEX.md`, `CLAUDE.md`, `GEMINI.md`
 - Create: `.sdkwork/README.md`, `.sdkwork/.gitignore`, `.sdkwork/skills/README.md`, `.sdkwork/plugins/README.md`
-- Create: `README.md`, `sdkwork.app.config.json`, `specs/component.spec.json`
+- Create: `README.md`, `agent.app.config.json`, `specs/component.spec.json`
 
 - [x] **Step 1: Define root SDKWork standards references**
 - [x] **Step 2: Declare domain, capability, and naming guardrails**

@@ -18,7 +18,7 @@ function readJson(file) {
 
 const requiredFiles = [
   "AGENTS.md",
-  "sdkwork.app.config.json",
+  "agent.app.config.json",
   "specs/component.spec.json",
   "specs/forum-database.schema.yaml",
   "docs/forum-database-design.md",

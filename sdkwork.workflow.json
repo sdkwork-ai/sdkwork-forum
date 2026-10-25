@@ -6,7 +6,7 @@
     "name": "sdkwork-forum",
     "repository": "sdkwork-ai/sdkwork-forum",
     "sourcePath": ".",
-    "configPath": "sdkwork.app.config.json"
+    "configPath": "agent.app.config.json"
   },
   "release": {
     "artifactPrefix": "sdkwork-forum",
