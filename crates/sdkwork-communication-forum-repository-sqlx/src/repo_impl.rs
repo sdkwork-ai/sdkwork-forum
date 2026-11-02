@@ -996,6 +996,7 @@ impl ForumRepository for SqlxForumRepository {
         command: &UpdateReplyCommand,
     ) -> Result<ForumReply, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
+        let org_id = ctx.organization_id_value();
         let row = run_db!(async {
             sqlx::query(
                 "UPDATE forum_topic_reply
@@ -1003,13 +1004,14 @@ impl ForumRepository for SqlxForumRepository {
                      body_format = COALESCE($2, body_format),
                      version = version + 1,
                      updated_at = NOW()
-                 WHERE id = $3 AND tenant_id = $4 AND deleted_at IS NULL
+                 WHERE id = $3 AND tenant_id = $4 AND organization_id = $5 AND deleted_at IS NULL
                  RETURNING *",
             )
             .bind(command.body.as_deref())
             .bind(command.body_format.as_deref())
             .bind(command.reply_id)
             .bind(tenant_id)
+            .bind(org_id)
             .fetch_one(&self.pool)
             .await
         })
@@ -1029,16 +1031,18 @@ impl ForumRepository for SqlxForumRepository {
     ) -> Result<CommandResult, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
         let user_id = ctx.user_id_value();
+        let org_id = ctx.organization_id_value();
         let row = run_db!(async {
             sqlx::query(
                 "UPDATE forum_topic_reply
                  SET deleted_at = NOW(), deleted_by = $1, status = 'deleted'
-                 WHERE id = $2 AND tenant_id = $3 AND deleted_at IS NULL
+                 WHERE id = $2 AND tenant_id = $3 AND organization_id = $4 AND deleted_at IS NULL
                  RETURNING id, uuid",
             )
             .bind(user_id)
             .bind(command.reply_id)
             .bind(tenant_id)
+            .bind(org_id)
             .fetch_one(&self.pool)
             .await
         })
@@ -1060,16 +1064,18 @@ impl ForumRepository for SqlxForumRepository {
         command: &AcceptReplyCommand,
     ) -> Result<ForumTopic, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
+        let org_id = ctx.organization_id_value();
         let row = run_db!(async {
             sqlx::query(
                 "UPDATE forum_topic
                  SET accepted_reply_id = $1
-                 WHERE id = $2 AND tenant_id = $3 AND topic_type = 'question'
+                 WHERE id = $2 AND tenant_id = $3 AND organization_id = $4 AND topic_type = 'question'
                  RETURNING *",
             )
             .bind(command.reply_id)
             .bind(command.topic_id)
             .bind(tenant_id)
+            .bind(org_id)
             .fetch_one(&self.pool)
             .await
         })
@@ -1088,15 +1094,17 @@ impl ForumRepository for SqlxForumRepository {
         command: &ClearAcceptedReplyCommand,
     ) -> Result<CommandResult, ForumServiceError> {
         let tenant_id = ctx.tenant_id_value();
+        let org_id = ctx.organization_id_value();
         let row = run_db!(async {
             sqlx::query(
                 "UPDATE forum_topic
                  SET accepted_reply_id = NULL
-                 WHERE id = $1 AND tenant_id = $2
+                 WHERE id = $1 AND tenant_id = $2 AND organization_id = $3
                  RETURNING id, uuid",
             )
             .bind(command.topic_id)
             .bind(tenant_id)
+            .bind(org_id)
             .fetch_one(&self.pool)
             .await
         })
