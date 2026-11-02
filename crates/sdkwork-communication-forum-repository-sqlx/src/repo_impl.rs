@@ -1270,10 +1270,11 @@ impl ForumRepository for SqlxForumRepository {
         let case_row = run_db!(async {
             sqlx::query(
                 "SELECT target_type, target_id, case_status FROM forum_moderation_case
-                 WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL",
+                 WHERE id = $1 AND tenant_id = $2 AND organization_id = $3 AND deleted_at IS NULL",
             )
             .bind(command.case_id)
             .bind(tenant_id)
+            .bind(org_id)
             .fetch_one(&self.pool)
             .await
         })
@@ -1328,11 +1329,12 @@ impl ForumRepository for SqlxForumRepository {
             sqlx::query(
                 "UPDATE forum_moderation_case
                  SET case_status = $1, resolved_at = NOW(), updated_at = NOW(), version = version + 1
-                 WHERE id = $2 AND tenant_id = $3"
+                 WHERE id = $2 AND tenant_id = $3 AND organization_id = $4"
             )
             .bind(new_case_status)
             .bind(command.case_id)
             .bind(tenant_id)
+            .bind(org_id)
             .execute(&self.pool)
             .await
         }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
@@ -1341,10 +1343,11 @@ impl ForumRepository for SqlxForumRepository {
             sqlx::query(
                 "UPDATE forum_moderation_queue_item
                  SET queue_status = 'closed', updated_at = NOW(), version = version + 1
-                 WHERE case_id = $1 AND tenant_id = $2 AND queue_status IN ('open', 'assigned', 'in_review')"
+                 WHERE case_id = $1 AND tenant_id = $2 AND organization_id = $3 AND queue_status IN ('open', 'assigned', 'in_review')"
             )
             .bind(command.case_id)
             .bind(tenant_id)
+            .bind(org_id)
             .execute(&self.pool)
             .await
         }).map_err(|e| ForumServiceError::internal(e.to_string()))?;
