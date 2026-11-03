@@ -76,6 +76,21 @@
           "iam:self"
         ]
       }
+    },
+    {
+      "id": "sdkwork-forum-pc",
+      "root": "apps/sdkwork-forum-pc",
+      "format": "vite",
+      "runtimeTarget": "browser",
+      "bindings": {},
+      "accessToken": {
+        "appId": "sdkwork-forum-pc",
+        "tenantId": "100001",
+        "organizationId": "0",
+        "permissionScope": [
+          "iam:self"
+        ]
+      }
     }
   ]
 }
