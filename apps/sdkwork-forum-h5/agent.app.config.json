@@ -22,7 +22,11 @@
       }
     ],
     "tenantId": "100001",
-    "organizationId": "0"
+    "organizationId": "0",
+    "appId": "sdkwork-forum-h5",
+    "accessTokenPermissionScope": [
+      "iam:self"
+    ]
   },
   "runtime": {
     "modes": [
