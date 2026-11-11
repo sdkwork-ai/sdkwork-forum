@@ -42,19 +42,35 @@ impl<R: ForumRepository> ForumService<R> {
             "forum_topic_reply" => "reply",
             _ => event.aggregate_type,
         };
-        self.index_search_best_effort(source_type, &event.aggregate_id);
+        self.index_search_best_effort(ctx, source_type, &event.aggregate_id);
         self.notify_forum_event_best_effort(&event.event_type, &event.aggregate_id);
         Ok(())
     }
 
-    pub(super) fn remove_search_document_best_effort(&self, source_type: &str, source_id: &str) {
-        if let Err(error) = self.search_port.delete_document(source_type, source_id) {
+    pub(super) fn remove_search_document_best_effort(
+        &self,
+        ctx: &ForumRequestContext,
+        source_type: &str,
+        source_id: &str,
+    ) {
+        if let Err(error) = self
+            .search_port
+            .delete_document(ctx, source_type, source_id)
+        {
             tracing::warn!(source_type, source_id, error, "forum search delete failed");
         }
     }
 
-    fn index_search_best_effort(&self, source_type: &str, source_id: &str) {
-        if let Err(error) = self.search_port.index_document(source_type, source_id) {
+    fn index_search_best_effort(
+        &self,
+        ctx: &ForumRequestContext,
+        source_type: &str,
+        source_id: &str,
+    ) {
+        if let Err(error) = self
+            .search_port
+            .index_document(ctx, source_type, source_id)
+        {
             tracing::warn!(source_type, source_id, error, "forum search index failed");
         }
     }

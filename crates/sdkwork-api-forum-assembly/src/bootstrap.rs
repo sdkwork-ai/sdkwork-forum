@@ -62,21 +62,20 @@ fn forum_router(service_host: Arc<ForumServiceHost>) -> Router {
         .with_state(state)
 }
 
-pub async fn assemble_api_router() -> ApiAssembly {
-    let service_host = Arc::new(ForumServiceHost::new().await);
+pub async fn assemble_api_router() -> Result<ApiAssembly, String> {
+    let service_host = Arc::new(ForumServiceHost::new().await?);
     let contribution = contribution_from(
         forum_router(Arc::clone(&service_host)),
         Arc::new(sdkwork_web_bootstrap::AlwaysReady),
-    )
-    .expect("forum contribution contract is valid");
+    )?;
 
-    ApiAssembly {
+    Ok(ApiAssembly {
         contribution,
         database_pool: service_host.database_pool(),
         database_module: service_host.database_module(),
         seed_locale: default_seed_locale(),
         seed_profile: default_seed_profile(),
-    }
+    })
 }
 
 /// Assemble the Forum contribution against a caller-provided database pool so
@@ -102,7 +101,7 @@ pub async fn assemble_api_router_with_pool(pool: DatabasePool) -> Result<ApiAsse
 /// manifest, and OpenAPI document of this owner — as one installable module.
 pub async fn web_module() -> Result<WebModule, String> {
     Ok(WebModule::from_contribution(
-        assemble_api_router().await.contribution,
+        assemble_api_router().await?.contribution,
     ))
 }
 

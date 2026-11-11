@@ -21,14 +21,20 @@ pub struct ForumServiceHost {
 }
 
 impl ForumServiceHost {
-    pub async fn new() -> Self {
+    /// Builds the host from the environment, including the outbound ports.
+    ///
+    /// # Errors
+    ///
+    /// Fails when the database cannot be bootstrapped, or when
+    /// `SDKWORK_FORUM_SEARCH_MODE=http` was selected without its endpoint and
+    /// service credential. The default in-process ports never fail on missing
+    /// configuration (MODULE_SPEC.md §4.2.3).
+    pub async fn new() -> Result<Self, String> {
         let _ = dotenvy::dotenv();
 
         tracing::info!("Connecting to database...");
 
-        let database_host = bootstrap_forum_database_from_env()
-            .await
-            .expect("Failed to bootstrap forum database");
+        let database_host = bootstrap_forum_database_from_env().await?;
 
         Self::from_database_host(database_host)
     }
@@ -37,16 +43,18 @@ impl ForumServiceHost {
     /// cloud gateway can share its process-wide PostgreSQL pool.
     pub async fn from_database_pool(pool: DatabasePool) -> Result<Self, String> {
         let database_host = bootstrap_forum_database(pool).await?;
-        Ok(Self::from_database_host(database_host))
+        Self::from_database_host(database_host)
     }
 
-    fn from_database_host(database_host: sdkwork_forum_database_host::ForumDatabaseHost) -> Self {
+    fn from_database_host(
+        database_host: sdkwork_forum_database_host::ForumDatabaseHost,
+    ) -> Result<Self, String> {
         let pool = database_host.pool().clone();
         let database_module = database_host.module();
 
         let pg_pool = pool
             .as_postgres()
-            .expect("Expected PostgreSQL pool for forum service")
+            .ok_or_else(|| "Expected PostgreSQL pool for forum service".to_string())?
             .clone();
 
         let iam_pool = if iam_enabled_from_env() {
@@ -57,23 +65,30 @@ impl ForumServiceHost {
 
         tracing::info!("Database connected successfully");
 
+        // Sibling-module ports are composed on this host pool (MODULE_SPEC.md
+        // §4.2): Drive and Search are called in-process by default, and the only
+        // failure mode here is an explicitly configured split deployment whose
+        // endpoint or credential is missing. That fails now, at startup.
+        let drive_port = ports::build_drive_port(&pg_pool);
+        let search_port = ports::build_search_port(&pg_pool)?;
+
         let repository = SqlxForumRepository::new(pg_pool.clone());
         let service = ForumService::new_with_ports(
             repository,
-            ports::build_drive_port(),
-            ports::build_search_port(),
+            drive_port,
+            search_port,
             ports::build_notification_port(),
         );
 
         tracing::info!("Forum service initialized");
 
-        Self {
+        Ok(Self {
             service,
             pool,
             pg_pool,
             iam_pool,
             database_module,
-        }
+        })
     }
 
     pub fn service(&self) -> &ForumService<SqlxForumRepository> {

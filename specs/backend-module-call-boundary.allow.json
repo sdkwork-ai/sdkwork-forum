@@ -1,0 +1,11 @@
+{
+  "$comment": "MODULE_SPEC.md §4.2 deliberate exceptions for sdkwork-forum. Every entry MUST have a written reason and MUST sit in an explicitly named *_http_adapter module that is never the default.",
+  "allow": [
+    {
+      "file": "crates/sdkwork-forum-service-host/src/ports/search_http_adapter.rs",
+      "envVar": "SDKWORK_FORUM_SEARCH_URL",
+      "module": "search",
+      "reason": "Explicit split-deployment opt-in only. The default (and the only mode a deployment that configures nothing gets) is the in-process sdkwork-search provider SPI on the shared PostgreSQL. http is selected only by SDKWORK_FORUM_SEARCH_MODE=http, and the adapter validates SDKWORK_FORUM_SEARCH_URL plus SDKWORK_ACCESS_TOKEN at startup, so a split deployment cannot boot and then fail after forum state changed (MODULE_SPEC.md §4.2.3)."
+    }
+  ]
+}

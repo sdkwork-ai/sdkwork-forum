@@ -1,4 +1,4 @@
-﻿[workspace]
+[workspace]
 resolver = "2"
 members = [
     "crates/sdkwork-api-forum-assembly",
@@ -70,3 +70,8 @@ sdkwork-api-forum-assembly = { path = "crates/sdkwork-api-forum-assembly" }
 sdkwork-forum-service-host = { path = "crates/sdkwork-forum-service-host" }
 sdkwork-routes-forum-app-api = { path = "crates/sdkwork-routes-forum-app-api" }
 sdkwork-routes-forum-backend-api = { path = "crates/sdkwork-routes-forum-backend-api" }
+# Sibling module crates reached in-process instead of over their HTTP surfaces
+# (MODULE_SPEC.md §4.2). They run in the same process against the same PostgreSQL.
+sdkwork-drive-workspace-service = { path = "../sdkwork-drive/crates/sdkwork-drive-workspace-service" }
+sdkwork-search-provider-spi = { path = "../sdkwork-search/crates/sdkwork-search-provider-spi" }
+sdkwork-search-provider-postgresql = { path = "../sdkwork-search/crates/sdkwork-search-provider-postgresql" }

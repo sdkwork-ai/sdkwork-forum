@@ -48,8 +48,8 @@ sdkDependencies: []
 
 | Port | Trait | Status | Implementations |
 |------|-------|--------|-----------------|
-| Drive | `ForumDrivePort` | Partial | `NoopForumDrivePort`, `LoggingForumDrivePort` (awaiting Drive SDK) |
-| Search | `ForumSearchPort` | Implemented | `HttpForumSearchPort` (`sdkwork-search-backend-api` upsert/delete/rebuild), `LoggingForumSearchPort`, `NoopForumSearchPort` |
+| Drive | `ForumDrivePort` | Implemented (in-process) | `InProcessForumDrivePort` (`sdkwork-drive-workspace-service` on the shared pool), `LoggingForumDrivePort`, `NoopForumDrivePort` |
+| Search | `ForumSearchPort` | Implemented (in-process by default) | `InProcessForumSearchPort` (`sdkwork-search` provider SPI), `HttpForumSearchPort` (explicit `SDKWORK_FORUM_SEARCH_MODE=http` opt-in), `LoggingForumSearchPort`, `NoopForumSearchPort` |
 | Notification | `ForumNotificationPort` | Partial | `HttpForumNotificationPort` (generic HTTP), `LoggingForumNotificationPort`, `NoopForumNotificationPort` |
 
 ### IAM Request Context
@@ -60,11 +60,11 @@ Use `SDKWORK_DATABASE_URL` when IAM sessions live outside the forum database mod
 
 ### Drive Media Grants
 
-`ForumDrivePort` provides:
-- `validate_media_reference(media_resource_id)` - Verify tenant scope, ownership, scan status, and lifecycle
-- `create_download_grant(media_resource_id)` - Create scoped download grant for attachments
+`ForumDrivePort` provides (called in-process through `sdkwork-drive-workspace-service`, MODULE_SPEC.md §4.2):
+- `validate_media_reference(ctx, media_resource_id)` - Drive's tenant-scoped active node + active space read, plus the caller's own `reader` effective ACL
+- `create_download_grant(ctx, media_resource_id)` - Drive download-token URL (Drive's 30..=300 s window, default 120 s) on this process's public ingress
 
-Awaiting `sdkwork-drive-app-sdk` dependency resolution for real implementation.
+There is no Drive HTTP transport: the retired `SDKWORK_FORUM_DRIVE_URL` only selected a logging no-op and has been deleted.
 
 ### Notification Event Publisher
 
@@ -77,12 +77,12 @@ Awaiting `sdkwork-messaging-sdk` dependency resolution for real implementation.
 
 ### Search Indexing Adapter
 
-`ForumSearchPort` provides:
-- `index_document(source_type, source_id)` - Upsert via `PUT /backend/v3/api/search/indexes/{indexId}/documents/{documentId}`
-- `delete_document(source_type, source_id)` - Remove via `DELETE` on the same path
-- `rebuild_index(board_id)` - Trigger `POST /backend/v3/api/search/jobs/rebuild` for the configured index
+`ForumSearchPort` provides (in-process through the `sdkwork-search` provider SPI by default):
+- `index_document(ctx, source_type, source_id)` - Upsert document `{sourceType}:{sourceId}` into index `SDKWORK_FORUM_SEARCH_INDEX_ID` (default `forum`) under the request tenant/organization
+- `delete_document(ctx, source_type, source_id)` - Soft-delete the same document
+- `rebuild_index(ctx, board_id)` - Drop + recreate the index; board-scoped rebuild remains a forum-side concern
 
-Configure `SDKWORK_FORUM_SEARCH_URL`, `SDKWORK_FORUM_SEARCH_INDEX_ID`, and private bootstrap `SDKWORK_ACCESS_TOKEN` for backend search calls. Board-scoped rebuild remains a forum-side concern until search exposes scoped rebuild filters.
+A split deployment where sdkwork-search runs in another process is an explicit opt-in: `SDKWORK_FORUM_SEARCH_MODE=http` together with `SDKWORK_FORUM_SEARCH_URL` and a private bootstrap `SDKWORK_ACCESS_TOKEN`. The opt-in is validated at startup; unset `SDKWORK_FORUM_SEARCH_MODE` (or set it to `in-process`) for the default in-process provider.
 
 ### Appbase Permission Mapping
 

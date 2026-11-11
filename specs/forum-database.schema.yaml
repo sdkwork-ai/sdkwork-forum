@@ -58,8 +58,8 @@ implementation_status:
     status: implemented
     note: "SqlxForumRepository implements all ForumRepository methods with PostgreSQL and snowflake ids via sdkwork-id-core."
   integration_ports:
-    status: http_optional
-    note: "Search and notification ports use HTTP adapters when SDKWORK_FORUM_SEARCH_URL / SDKWORK_FORUM_NOTIFICATION_URL are set; otherwise logging or noop adapters apply. Drive validation runs on attachment create."
+    status: in_process
+    note: "Drive (sdkwork-drive-workspace-service) and search (sdkwork-search provider SPI) are called in-process on the shared PostgreSQL (MODULE_SPEC.md section 4.2). Search HTTP is an explicit split-deployment opt-in (SDKWORK_FORUM_SEARCH_MODE=http plus SDKWORK_FORUM_SEARCH_URL and SDKWORK_ACCESS_TOKEN, validated at startup); the retired SDKWORK_FORUM_DRIVE_URL is deleted. Notification keeps SDKWORK_FORUM_NOTIFICATION_URL or the logging/noop adapters."
   worker_jobs:
     status: implemented
     note: "ForumWorker delegates to ForumService for outbox publish, search projection rebuild, stats rebuild, and moderation queue scan. Notification fanout awaits NotificationPort wiring."

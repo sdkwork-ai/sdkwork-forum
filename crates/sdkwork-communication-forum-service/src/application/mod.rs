@@ -251,7 +251,7 @@ impl<R: ForumRepository> ForumService<R> {
         }
         let topic_id = command.topic_id;
         self.repository.delete_topic(ctx, &command).map(|result| {
-            self.remove_search_document_best_effort("topic", &topic_id.to_string());
+            self.remove_search_document_best_effort(ctx, "topic", &topic_id.to_string());
             let _ = self.record_domain_event(
                 ctx,
                 ForumDomainEvent::topic_deleted(topic_id.to_string()),
@@ -360,7 +360,7 @@ impl<R: ForumRepository> ForumService<R> {
         }
         let reply_id = command.reply_id;
         self.repository.delete_reply(ctx, &command).map(|result| {
-            self.remove_search_document_best_effort("reply", &reply_id.to_string());
+            self.remove_search_document_best_effort(ctx, "reply", &reply_id.to_string());
             let _ = self.record_domain_event(
                 ctx,
                 ForumDomainEvent::reply_deleted(reply_id.to_string()),
@@ -524,7 +524,7 @@ impl<R: ForumRepository> ForumService<R> {
         command: RebuildSearchProjectionCommand,
     ) -> Result<CommandResult, ForumServiceError> {
         let result = self.repository.rebuild_search_projection(ctx, &command)?;
-        if let Err(error) = self.search_port.rebuild_index(command.board_id) {
+        if let Err(error) = self.search_port.rebuild_index(ctx, command.board_id) {
             tracing::warn!(board_id = ?command.board_id, error, "forum search rebuild failed");
         }
         Ok(result)
@@ -1582,7 +1582,7 @@ impl<R: ForumRepository> ForumService<R> {
         }
         if let Some(ref media_resource_id) = command.media_resource_id {
             self.drive_port
-                .validate_media_reference(media_resource_id)
+                .validate_media_reference(ctx, media_resource_id)
                 .map_err(ForumServiceError::validation)?;
         }
         self.repository.create_attachment(ctx, &command)

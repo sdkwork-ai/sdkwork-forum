@@ -14,7 +14,7 @@ const APPLICATION_ID: &str = "sdkwork-forum";
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     sdkwork_web_bootstrap::init_tracing_from_env();
 
-    let assembly = assemble_api_router().await;
+    let assembly = assemble_api_router().await?;
     let ops_state = DatabaseOpsHttpState::new_with_default_auth(
         assembly.database_pool.clone(),
         assembly.database_module,

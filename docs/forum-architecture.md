@@ -75,11 +75,11 @@ Use `topic` and `reply` in all public contracts. The rejected word is documented
 │  └───────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────┘
 
-External Dependencies (awaiting SDK generation):
-  Drive SDK  ◄── ForumDrivePort
-  Search SDK ◄── ForumSearchPort
-  Messaging  ◄── ForumNotificationPort
-  Appbase    ◄── ForumRequestContext (tenant/user/permissions)
+Sibling Modules (MODULE_SPEC.md §4.2, called in-process on the shared PostgreSQL):
+  sdkwork-drive  ◄── ForumDrivePort  (workspace-service store + effective ACL)
+  sdkwork-search ◄── ForumSearchPort (provider SPI; HTTP only by explicit opt-in)
+  Messaging      ◄── ForumNotificationPort
+  Appbase        ◄── ForumRequestContext (tenant/user/permissions)
 ```
 
 ## Adapter Status
@@ -87,7 +87,7 @@ External Dependencies (awaiting SDK generation):
 | Adapter | Port Trait | Implementation | Status |
 |---------|-----------|----------------|--------|
 | Repository | `ForumRepository` | `SqlxForumRepository` | Implemented (PostgreSQL + snowflake ids) |
-| Drive | `ForumDrivePort` | `NoopForumDrivePort` / logging | Implemented (validate on attachment) |
-| Search | `ForumSearchPort` | `HttpForumSearchPort` / logging / noop | Implemented |
+| Drive | `ForumDrivePort` | `InProcessForumDrivePort` | Implemented in-process (tenant scope + `reader` ACL + download token) |
+| Search | `ForumSearchPort` | `InProcessForumSearchPort` (default) / `HttpForumSearchPort` (opt-in) | Implemented |
 | Notification | `ForumNotificationPort` | `HttpForumNotificationPort` / logging / noop | Implemented |
 | Request Context | `ForumRequestContext` | Typed struct | Implemented |
